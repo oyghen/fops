@@ -1,10 +1,10 @@
-__all__ = ("clear_cache", "confirm", "create_archive")
+__all__ = ("clear_cache", "confirm", "create_archive", "iter_lines")
 
 import logging
 import os
 import shutil
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from os import PathLike
 from pathlib import Path
 from shutil import copy2, get_archive_formats, make_archive
@@ -135,3 +135,15 @@ def create_archive(
                 continue
 
         make_archive(str(Path(base_name)), archive_format, root_dir=str(tmpdir_path))
+
+
+def iter_lines(
+    filepath: str | Path | PathLike[str],
+    encoding: str | None = None,
+    errors: str | None = None,
+    newline: str | None = None,
+) -> Iterator[str]:
+    """Return an iterator over text lines from filepath."""
+    path = os.fspath(filepath)
+    with open(path, encoding=encoding, errors=errors, newline=newline) as fh:
+        yield from fh

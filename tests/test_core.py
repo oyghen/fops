@@ -1,6 +1,8 @@
 import builtins
 import os
 import shutil
+import types
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -188,3 +190,73 @@ class TestCreateArchive:
             finally:
                 restore_cwd()
                 restore_ts()
+
+
+class TestIterLines:
+    def test_returns_generator(self):
+        with TemporaryDirectory() as tmp:
+            p = Path(tmp) / "t.txt"
+            p.write_text("x\n", encoding="utf-8")
+
+            gen = fops.core.iter_lines(p)
+            assert isinstance(gen, types.GeneratorType)
+            gen.close()
+
+    def test_reads_lines_preserving_newlines(self):
+        with TemporaryDirectory() as tmp:
+            p = Path(tmp) / "t.txt"
+            p.write_text("a\nb\n", encoding="utf-8")
+
+            assert list(fops.core.iter_lines(p)) == ["a\n", "b\n"]
+
+    def test_accepts_str_path(self):
+        with TemporaryDirectory() as tmp:
+            p = Path(tmp) / "t.txt"
+            p.write_text("1\n2\n", encoding="utf-8")
+
+            assert list(fops.core.iter_lines(str(p))) == ["1\n", "2\n"]
+
+    def test_encoding_and_errors(self):
+        with TemporaryDirectory() as tmp:
+            p = Path(tmp) / "t.txt"
+            p.write_text("café\n", encoding="utf-8")
+
+            result = list(fops.core.iter_lines(p, encoding="ascii", errors="replace"))
+            assert result == ["caf\ufffd\ufffd\n"]
+
+    def test_exhaustion_closes_generator(self):
+        with TemporaryDirectory() as tmp:
+            p = Path(tmp) / "t.txt"
+            p.write_text("line\n", encoding="utf-8")
+
+            gen = fops.core.iter_lines(p)
+            assert list(gen) == ["line\n"]
+            assert getattr(gen, "gi_frame", None) is None
+
+    def test_explicit_close_closes_file(self):
+        with TemporaryDirectory() as tmp:
+            p = Path(tmp) / "t.txt"
+            p.write_text("line\n", encoding="utf-8")
+
+            gen = fops.core.iter_lines(p)
+            assert next(gen) == "line\n"
+            gen.close()
+            assert getattr(gen, "gi_frame", None) is None
+
+    def test_pipe_lines(self):
+        with TemporaryDirectory() as tmp:
+            p = Path(tmp) / "t.txt"
+            p.write_text("one\ntwo\nthree\nfour\n", encoding="utf-8")
+
+            def strip_lines(lines: Iterable[str]) -> Iterator[str]:
+                """Return an iterator yielding stripped lines."""
+                return (s.strip() for s in lines)
+
+            def filter_len_gt_3(lines: Iterable[str]) -> Iterator[str]:
+                """Return an iterator filtering lines with length > 3."""
+                return (s for s in lines if len(s) > 3)
+
+            funcs = [strip_lines, filter_len_gt_3, tuple]
+            result = pk.fn.pipe(fops.core.iter_lines(p), funcs)
+
+            assert result == ("three", "four")
