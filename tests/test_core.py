@@ -5,6 +5,7 @@ import types
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import NamedTuple
 
 import purekit as pk
 import pytest
@@ -260,3 +261,25 @@ class TestIterLines:
             result = pk.fn.pipe(fops.core.iter_lines(p), funcs)
 
             assert result == ("three", "four")
+
+
+class TestTerminalWidth:
+    class TerminalSize(NamedTuple):
+        columns: int
+        lines: int
+
+    def test_from_shutil(self, monkeypatch):
+        # simulate a terminal width of 100
+        monkeypatch.setattr(
+            fops.core,
+            "get_terminal_size",
+            lambda: self.TerminalSize(columns=100, lines=24),
+        )
+        assert fops.core.terminal_width(default=79) == 100
+
+    def test_fallback(self, monkeypatch):
+        def raise_oserror():
+            raise OSError("no tty")
+
+        monkeypatch.setattr(fops.core, "get_terminal_size", raise_oserror)
+        assert fops.core.terminal_width(default=79) == 79

@@ -1,4 +1,4 @@
-__all__ = ("clear_cache", "confirm", "create_archive", "iter_lines")
+__all__ = ("clear_cache", "confirm", "create_archive", "iter_lines", "terminal_width")
 
 import logging
 import os
@@ -7,7 +7,7 @@ import tempfile
 from collections.abc import Iterator, Sequence
 from os import PathLike
 from pathlib import Path
-from shutil import copy2, get_archive_formats, make_archive
+from shutil import copy2, get_archive_formats, get_terminal_size, make_archive
 
 import purekit as pk
 import timeteller as tt
@@ -147,3 +147,11 @@ def iter_lines(
     path = os.fspath(filepath)
     with open(path, encoding=encoding, errors=errors, newline=newline) as fh:
         yield from fh
+
+
+def terminal_width(default: int = 79) -> int:
+    """Return the current terminal width or a fallback value."""
+    try:
+        return get_terminal_size().columns
+    except OSError:
+        return default
