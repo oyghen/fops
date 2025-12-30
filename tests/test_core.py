@@ -9,9 +9,9 @@ from typing import NamedTuple
 
 import purekit as pk
 import pytest
-import timeteller as tt
 
 import fops
+from fops import utils
 
 
 class TestConfirm:
@@ -65,10 +65,10 @@ class TestConfirm:
 
 class TestCreateArchive:
     def _patch_timestamp(self, value: str):
-        """Patch tt.stdlib.timestamp, return a restore callable."""
-        orig = tt.stdlib.timestamp
-        tt.stdlib.timestamp = lambda tz, fmt: value
-        return lambda: setattr(tt.stdlib, "timestamp", orig)
+        """Patch utils.utctimestamp, return a restore callable."""
+        orig = utils.utctimestamp
+        utils.utctimestamp = lambda: value
+        return lambda: setattr(utils, "utctimestamp", orig)
 
     def _chdir(self, new_cwd: str):
         """Change cwd, return a restore callable."""

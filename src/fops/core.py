@@ -19,7 +19,8 @@ from shutil import copy2, get_archive_formats, get_terminal_size, make_archive
 from typing import Final
 
 import purekit as pk
-import timeteller as tt
+
+from fops import utils
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +99,6 @@ def create_archive(
     directory_path: str | Path | PathLike[str],
     archive_name: str | None = None,
     patterns: Sequence[str] | None = None,
-    timezone: str | None = None,
     archive_format: str = "zip",
 ) -> None:
     """Return an archive in the current working directory from the directory's files."""
@@ -113,8 +113,7 @@ def create_archive(
         raise pk.exceptions.InvalidChoiceError(archive_format, choices=supported)
 
     if archive_name is None:
-        timestamp = tt.stdlib.timestamp(timezone, "%Y%m%d%H%M%S")
-        base_name = f"{timestamp}_{dir_path.stem}"
+        base_name = f"{utils.utctimestamp()}_{dir_path.stem}"
     else:
         if Path(archive_name).name != archive_name:
             raise ValueError("archive_name must not contain directory components")
