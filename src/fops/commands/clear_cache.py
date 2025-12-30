@@ -8,6 +8,7 @@ from fops.commands import app
 
 @app.command()
 def clear_cache() -> None:
+    """Delete cache directories and files."""
     try:
         fops.core.clear_cache(directory_path=Path.cwd())
         typer.secho("Cache cleared.", fg=typer.colors.GREEN)
