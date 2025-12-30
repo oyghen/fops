@@ -1,4 +1,12 @@
-__all__ = ("clear_cache", "confirm", "create_archive", "iter_lines", "terminal_width")
+__all__ = (
+    "CACHE_DIRECTORIES",
+    "CACHE_FILE_EXTENSIONS",
+    "clear_cache",
+    "confirm",
+    "create_archive",
+    "iter_lines",
+    "terminal_width",
+)
 
 import logging
 import os
@@ -8,6 +16,7 @@ from collections.abc import Iterator, Sequence
 from os import PathLike
 from pathlib import Path
 from shutil import copy2, get_archive_formats, get_terminal_size, make_archive
+from typing import Final
 
 import purekit as pk
 import timeteller as tt
@@ -15,29 +24,42 @@ import timeteller as tt
 logger = logging.getLogger(__name__)
 
 
-def clear_cache(directory_path: str | Path | PathLike[str]) -> None:
-    root = Path(directory_path).resolve()
-    directories = [
-        "__pycache__",
-        ".pytest_cache",
-        ".ipynb_checkpoints",
-        ".ruff_cache",
-        "spark-warehouse",
-    ]
-    file_extensions = [
-        "*.py[co]",
-        ".coverage",
-        ".coverage.*",
-    ]
+CACHE_DIRECTORIES: Final[tuple[str, ...]] = (
+    "__pycache__",
+    ".pytest_cache",
+    ".ipynb_checkpoints",
+    ".ruff_cache",
+    "spark-warehouse",
+)
 
-    for directory in directories:
+CACHE_FILE_EXTENSIONS: Final[tuple[str, ...]] = (
+    "*.py[co]",
+    ".coverage",
+    ".coverage.*",
+)
+
+
+def clear_cache(
+    directory_path: str | Path | PathLike[str],
+    cache_directories: Sequence[str] | None = None,
+    cache_file_extensions: Sequence[str] | None = None,
+) -> None:
+    root = Path(directory_path).resolve()
+
+    if cache_directories is None:
+        cache_directories = CACHE_DIRECTORIES
+
+    if cache_file_extensions is None:
+        cache_file_extensions = CACHE_FILE_EXTENSIONS
+
+    for directory in cache_directories:
         for path in root.rglob(directory):
             if "venv" in str(path):
                 continue
             shutil.rmtree(path.absolute(), ignore_errors=False)
             logger.info("deleted - %s", path)
 
-    for file_extension in file_extensions:
+    for file_extension in cache_file_extensions:
         for path in root.rglob(file_extension):
             if "venv" in str(path):
                 continue
