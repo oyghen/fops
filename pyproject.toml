@@ -9,7 +9,6 @@ authors = [
 requires-python = ">=3.11"
 dependencies = [
     "purekit>=0.1.0rc2",
-    "timeteller>=0.1.0rc3",
 ]
 
 [project.scripts]
