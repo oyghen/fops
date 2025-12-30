@@ -18,8 +18,6 @@ from pathlib import Path
 from shutil import copy2, get_archive_formats, get_terminal_size, make_archive
 from typing import Final
 
-import purekit as pk
-
 from fops import utils
 
 logger = logging.getLogger(__name__)
@@ -110,7 +108,9 @@ def create_archive(
     archive_format = archive_format.lower()
     supported = {fmt for fmt, _ in get_archive_formats()}
     if archive_format not in supported:
-        raise pk.exceptions.InvalidChoiceError(archive_format, choices=supported)
+        raise ValueError(
+            f"invalid choice {archive_format!r}; expected a value from {supported!r}"
+        )
 
     if archive_name is None:
         base_name = f"{utils.utctimestamp()}_{dir_path.stem}"

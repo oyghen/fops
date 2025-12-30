@@ -7,7 +7,6 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import NamedTuple
 
-import purekit as pk
 import pytest
 
 import fops
@@ -186,7 +185,7 @@ class TestCreateArchive:
             restore_ts = self._patch_timestamp("20250101010101")
             restore_cwd = self._chdir(workdir)
             try:
-                with pytest.raises(pk.exceptions.InvalidChoiceError):
+                with pytest.raises(ValueError):
                     fops.core.create_archive(srcdir, archive_format="INVALID_FORMAT")
             finally:
                 restore_cwd()
@@ -258,7 +257,7 @@ class TestIterLines:
                 return (s for s in lines if len(s) > 3)
 
             funcs = [strip_lines, filter_len_gt_3, tuple]
-            result = pk.fn.pipe(fops.core.iter_lines(p), funcs)
+            result = utils.pipe(fops.core.iter_lines(p), funcs)
 
             assert result == ("three", "four")
 
