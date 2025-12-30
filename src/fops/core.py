@@ -98,8 +98,8 @@ def create_archive(
     archive_name: str | None = None,
     patterns: Sequence[str] | None = None,
     archive_format: str = "zip",
-) -> None:
-    """Return an archive in the current working directory from the directory's files."""
+) -> Path:
+    """Return the path of the created archive file."""
     dir_path = Path(directory_path).resolve()
     if not dir_path.exists() or not dir_path.is_dir():
         raise ValueError(f"{directory_path!r} does not exist or is not a directory")
@@ -130,6 +130,7 @@ def create_archive(
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir_path = Path(tmpdir)
         for src_path in paths:
+            logger.debug("processing - %s", src_path)
             try:
                 rel = src_path.relative_to(dir_path)
             except Exception:
@@ -155,7 +156,13 @@ def create_archive(
             else:
                 continue
 
-        make_archive(str(Path(base_name)), archive_format, root_dir=str(tmpdir_path))
+        archive_path = make_archive(
+            str(Path(base_name)),
+            archive_format,
+            root_dir=str(tmpdir_path),
+        )
+
+    return Path(archive_path)
 
 
 def iter_lines(
