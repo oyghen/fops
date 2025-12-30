@@ -43,6 +43,7 @@ def clear_cache(
     cache_directories: Sequence[str] | None = None,
     cache_file_extensions: Sequence[str] | None = None,
 ) -> None:
+    """Delete cache directories and files in the specified directory."""
     root = Path(directory_path).resolve()
 
     if cache_directories is None:
