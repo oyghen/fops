@@ -7,9 +7,7 @@ authors = [
     { name = "oyghen", email = "oyghen@duck.com" }
 ]
 requires-python = ">=3.11"
-dependencies = [
-    "purekit>=0.1.0rc2",
-]
+dependencies = []
 
 [project.scripts]
 fops = "fops._cli_entry:main"
