@@ -2,7 +2,7 @@ __all__ = (
     "PROTECTED_BRANCHES",
     "CACHE_DIRECTORIES",
     "CACHE_FILE_EXTENSIONS",
-    "clear_cache",
+    "delete_cache",
     "confirm",
     "create_archive",
     "iter_lines",
@@ -52,7 +52,7 @@ CACHE_FILE_EXTENSIONS: Final[tuple[str, ...]] = (
 )
 
 
-def clear_cache(
+def delete_cache(
     directory_path: str | Path | PathLike[str],
     cache_directories: Sequence[str] | None = None,
     cache_file_extensions: Sequence[str] | None = None,

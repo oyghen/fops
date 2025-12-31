@@ -11,9 +11,9 @@ app = typer.Typer(add_completion=False)
 
 # command imports need to be after app creation
 from fops.commands import (  # noqa: E402,F401
-    clear_cache,
     create_archive,
     delete_branches,
+    delete_cache,
 )
 
 
