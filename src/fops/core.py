@@ -77,6 +77,7 @@ def delete_cache(
                 continue
             shutil.rmtree(path.absolute(), ignore_errors=False)
             logger.info("deleted - %s", path)
+    logger.info("done with deleting cache directories")
 
     for file_extension in cache_file_extensions:
         for path in root.rglob(file_extension):
@@ -84,6 +85,7 @@ def delete_cache(
                 continue
             path.unlink()
             logger.info("deleted - %s", path)
+    logger.info("done with deleting cache files")
 
 
 def confirm(prompt: str, default: str | None = None) -> bool:
