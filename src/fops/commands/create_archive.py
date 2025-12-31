@@ -37,7 +37,7 @@ def create_archive(
             patterns,
             archive_format,
         )
-        typer.secho(f"Archive created - {archive_path}", fg=typer.colors.GREEN)
+        typer.secho(f"Done - {archive_path}", fg=typer.colors.GREEN)
     except Exception as exc:
         typer.secho("Failed to create archive.", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from exc
