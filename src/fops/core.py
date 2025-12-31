@@ -1,4 +1,5 @@
 __all__ = (
+    "PathLikeStr",
     "PROTECTED_BRANCHES",
     "CACHE_DIRECTORIES",
     "CACHE_FILE_EXTENSIONS",
@@ -15,8 +16,11 @@ __all__ = (
     "get_last_commit_hash",
     "run_command",
     "get_installed_package_count",
+    "rename_extensions",
+    "safe_copy",
 )
 
+import contextlib
 import logging
 import os
 import shlex
@@ -330,3 +334,143 @@ def get_installed_package_count() -> int:
             return int(count)
 
     return int(count)
+
+
+def rename_extensions(
+    directory_path: PathLikeStr,
+    old_ext: str | None,
+    new_ext: str,
+    *,
+    create_copy: bool = False,
+    recursive: bool = False,
+    overwrite: bool = False,
+    dry_run: bool = False,
+) -> None:
+    """Rename (or copy) files in a directory by changing their extensions."""
+    logger.debug(
+        "running '%s' with %s",
+        utils.get_caller_name(),
+        {
+            "directory_path": directory_path,
+            "old_ext": old_ext,
+            "new_ext": new_ext,
+            "create_copy": create_copy,
+            "recursive": recursive,
+            "overwrite": overwrite,
+            "dry_run": dry_run,
+        },
+    )
+
+    dir_path = Path(directory_path).resolve()
+    if not dir_path.exists() or not dir_path.is_dir():
+        raise ValueError(f"{directory_path!r} does not exist or is not a directory")
+
+    def _normalize(ext: str | None) -> str | None:
+        if ext is None:
+            return None
+        if ext == "":
+            return ""
+        return ext if ext.startswith(".") else f".{ext}"
+
+    src_ext = _normalize(old_ext)
+    dst_ext = _normalize(new_ext)
+    if dst_ext is None:
+        raise ValueError("new_ext must be provided")
+
+    # iterable of Path objects
+    file_paths = dir_path.rglob("*") if recursive else dir_path.iterdir()
+
+    for file_path in file_paths:
+        logger.debug("processing: %s", file_path)
+
+        if not file_path.is_file():
+            logger.debug("skipping - not a file: %s", file_path)
+            continue
+
+        name = file_path.name
+        lower_name = name.lower()
+
+        # decide if file matches src_ext
+        if src_ext is None:
+            matches = True
+        else:
+            src_lower = src_ext.lower()
+            # treat multi-dot extensions (e.g. '.tar.gz') via endswith
+            if src_lower.count(".") > 1:
+                matches = lower_name.endswith(src_lower)
+            else:
+                matches = file_path.suffix.lower() == src_lower
+
+        if not matches:
+            logger.debug("skipping - not a match: %s", file_path)
+            continue
+
+        # compute new path
+        if (
+            src_ext
+            and src_ext.lower().count(".") > 1
+            and lower_name.endswith(src_ext.lower())
+        ):
+            # replace trailing multi-dot ext
+            new_name = name[: -len(src_ext)] + dst_ext
+            new_path = file_path.with_name(new_name)
+        else:
+            # pathlib.with_suffix accepts '' to remove suffix
+            new_path = file_path.with_suffix(dst_ext)
+
+        # no-op
+        if new_path == file_path:
+            logger.debug("skipping - new_path is current file_path")
+            continue
+
+        if new_path.exists() and not overwrite:
+            raise FileExistsError(f"file already exists: {new_path}")
+
+        if dry_run:
+            op = "copy" if create_copy else "rename"
+            logger.info("[dry-run] %s %s -> %s", op, file_path, new_path)
+            continue
+
+        if create_copy:
+            safe_copy(file_path, new_path, overwrite=overwrite)
+            logger.info("copied %s -> %s", file_path, new_path)
+        else:
+            # use replace when allowing overwrite (atomic where supported)
+            if overwrite and new_path.exists():
+                file_path.replace(new_path)
+            else:
+                file_path.rename(new_path)
+            logger.info("renamed %s -> %s", file_path, new_path)
+
+
+def safe_copy(
+    old_file: PathLikeStr,
+    new_file: PathLikeStr,
+    *,
+    overwrite: bool = False,
+) -> None:
+    """Safely copy a file with metadata and atomically replace the target if desired."""
+    src = Path(old_file)
+    dst = Path(new_file)
+
+    if not src.exists() or not src.is_file():
+        raise FileNotFoundError(f"source does not exist or is not a file: {src}")
+
+    dst.parent.mkdir(parents=True, exist_ok=True)
+
+    if dst.exists() and not overwrite:
+        raise FileExistsError(f"target already exists: {dst}")
+
+    tmp_path: Path | None = None
+    try:
+        # create a named temporary file in the destination directory for atomic replace
+        with tempfile.NamedTemporaryFile(delete=False, dir=dst.parent) as tmp:
+            tmp_path = Path(tmp.name)
+        copy2(src, tmp_path)  # copy2 preserves metadata (mtime, permissions, flags)
+        os.replace(str(tmp_path), str(dst))  # atomic rename (replace) to final dst
+    except Exception:
+        # best-effort cleanup of temp file
+        with contextlib.suppress(Exception):
+            if tmp_path is not None and tmp_path.exists():
+                tmp_path.unlink()
+        raise

@@ -14,6 +14,7 @@ from fops.commands import (  # noqa: E402,F401
     create_archive,
     delete_branches,
     delete_cache,
+    rename_extensions,
 )
 
 
