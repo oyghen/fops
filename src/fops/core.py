@@ -12,6 +12,7 @@ __all__ = (
     "get_current_branch_name",
     "get_local_branch_names",
     "get_remote_branch_names",
+    "get_last_commit_hash",
     "run_command",
 )
 
@@ -274,6 +275,23 @@ def get_remote_branch_names() -> list[str]:
             continue
         branches.append(line)
     return branches
+
+
+def get_last_commit_hash(max_length: int | None = None) -> str:
+    """Return the full or truncated commit hash of the current branch."""
+    if max_length is not None:
+        if not isinstance(max_length, int):
+            raise TypeError(
+                f"unsupported type {type(max_length).__name__!r}; expected int or None"
+            )
+        if max_length < 1:
+            raise ValueError(f"invalid value {max_length!r}; expected >= 1")
+
+    commit = run_command("git rev-parse HEAD", label=utils.get_caller_name())
+    if not commit:
+        raise RuntimeError("git returned an empty commit hash")
+
+    return commit if max_length is None else commit[:max_length]
 
 
 def run_command(command: str | Sequence[str], label: str) -> str:
