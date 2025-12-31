@@ -1,7 +1,11 @@
+import logging
+
 import typer
 
 import fops
 from fops.cli import app
+
+logger = logging.getLogger(__name__)
 
 
 @app.command()
@@ -12,5 +16,7 @@ def delete_branches() -> None:
         fops.core.delete_remote_branch_refs()
         typer.secho("Done.", fg=typer.colors.GREEN)
     except Exception as exc:
-        typer.secho("Failed to delete branches.", fg=typer.colors.RED, err=True)
+        message = "Failed to delete branches"
+        logger.exception(message)
+        typer.secho(f"{message} (see log for details).", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from exc

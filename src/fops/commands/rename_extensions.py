@@ -1,9 +1,12 @@
+import logging
 from pathlib import Path
 
 import typer
 
 import fops
 from fops.cli import app
+
+logger = logging.getLogger(__name__)
 
 DIRECTORY_ARG = typer.Argument(help="Directory to process.")
 OLD_EXT_ARG = typer.Argument(help="File extension to match (e.g. 'txt' or '.txt').")
@@ -56,5 +59,7 @@ def rename_extensions(
         )
         typer.secho("Done.", fg=typer.colors.GREEN)
     except Exception as exc:
-        typer.secho("Failed to rename extensions.", fg=typer.colors.RED, err=True)
+        message = "Failed to rename extensions"
+        logger.exception(message)
+        typer.secho(f"{message} (see log for details).", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from exc
