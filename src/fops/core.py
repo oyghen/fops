@@ -14,6 +14,7 @@ __all__ = (
     "get_remote_branch_names",
     "get_last_commit_hash",
     "run_command",
+    "get_installed_package_count",
 )
 
 import logging
@@ -21,8 +22,10 @@ import os
 import shlex
 import shutil
 import subprocess
+import sys
 import tempfile
 from collections.abc import Iterator, Sequence
+from importlib import metadata
 from os import PathLike
 from pathlib import Path
 from shutil import copy2, get_archive_formats, get_terminal_size, make_archive
@@ -300,3 +303,29 @@ def run_command(command: str | Sequence[str], label: str) -> str:
     response = subprocess.run(cmd, capture_output=True, text=True, check=True)
     logger.debug("'%s' ran '%s'", label, " ".join(cmd))
     return response.stdout.strip()
+
+
+def get_installed_package_count() -> int:
+    """Return the number of installed packages for the current Python environment."""
+    try:
+        count = sum(1 for _ in metadata.distributions())
+    except Exception:
+        count = 0
+
+    # fallback: use the same interpreter's pip to get a reliable package list
+    if count < 10:
+        try:
+            proc = subprocess.run(
+                [sys.executable, "-m", "pip", "list", "--format=freeze"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            # ignore blank lines and count non-empty entries
+            lines = [ln for ln in proc.stdout.splitlines() if ln.strip()]
+            return len(lines)
+        except (subprocess.SubprocessError, OSError):
+            # if pip fails, return what metadata provided (possibly 0)
+            return int(count)
+
+    return int(count)
