@@ -52,7 +52,7 @@ wheels = [
 
 [[package]]
 name = "fops"
-version = "0.1.0rc3"
+version = "0.1.0rc4"
 source = { editable = "." }
 
 [package.optional-dependencies]
