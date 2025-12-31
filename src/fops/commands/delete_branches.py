@@ -1,7 +1,7 @@
 import typer
 
 import fops
-from fops.commands import app
+from fops.cli import app
 
 
 @app.command()
