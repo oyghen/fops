@@ -26,12 +26,13 @@ import sys
 import tempfile
 from collections.abc import Iterator, Sequence
 from importlib import metadata
-from os import PathLike
 from pathlib import Path
 from shutil import copy2, get_archive_formats, get_terminal_size, make_archive
-from typing import Final
+from typing import Final, TypeAlias
 
 from fops import utils
+
+PathLikeStr: TypeAlias = str | Path | os.PathLike[str]
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ CACHE_FILE_EXTENSIONS: Final[tuple[str, ...]] = (
 
 
 def delete_cache(
-    directory_path: str | Path | PathLike[str],
+    directory_path: PathLikeStr,
     cache_directories: Sequence[str] | None = None,
     cache_file_extensions: Sequence[str] | None = None,
 ) -> None:
@@ -109,7 +110,7 @@ def confirm(prompt: str, default: str | None = None) -> bool:
 
 
 def create_archive(
-    directory_path: str | Path | PathLike[str],
+    directory_path: PathLikeStr,
     archive_name: str | None = None,
     patterns: Sequence[str] | None = None,
     archive_format: str = "zip",
@@ -181,7 +182,7 @@ def create_archive(
 
 
 def iter_lines(
-    filepath: str | Path | PathLike[str],
+    filepath: PathLikeStr,
     encoding: str | None = None,
     errors: str | None = None,
     newline: str | None = None,
