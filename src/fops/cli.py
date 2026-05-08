@@ -148,7 +148,7 @@ def delete_branches(
     except Exception as exc:
         message = "failed to delete branches"
         logger.exception(message)
-        typer.secho(message, fg=typer.colors.RED, err=True, bold=True)
+        typer.secho(f"error: {message}", fg=typer.colors.RED, err=True, bold=True)
         raise typer.Exit(code=ExitCode.FAILURE) from exc
 
 

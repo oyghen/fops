@@ -159,7 +159,7 @@ def delete_local_branches(protected_branches: frozenset[str]) -> int | None:
             run_command(f"git branch -D {branch}")
             logger.info("deleted: %s", branch)
         except subprocess.CalledProcessError as exc:
-            logger.exception("failed to delete local branch: %s", branch)
+            logger.exception("error deleting local branch %s", branch)
             raise exc
 
     return len(to_delete)
@@ -179,7 +179,7 @@ def delete_remote_branch_refs(protected_branches: frozenset[str]) -> int | None:
             run_command(f"git branch -r -d {ref}")
             logger.info("deleted: %s", ref)
         except subprocess.CalledProcessError as exc:
-            logger.exception("failed to delete remote ref: %s", ref)
+            logger.exception("error deleting remote ref: %s", ref)
             raise exc
 
     return len(to_delete)
