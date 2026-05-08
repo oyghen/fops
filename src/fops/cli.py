@@ -1,5 +1,6 @@
 import logging
 import sys
+from enum import IntEnum
 from pathlib import Path
 from typing import Annotated
 
@@ -8,10 +9,15 @@ import typer
 import fops
 from fops import core
 
+logger = logging.getLogger(__name__)
+
 app = typer.Typer(add_completion=False)
 
 
-logger = logging.getLogger(__name__)
+class ExitCode(IntEnum):
+    SUCCESS = 0
+    FAILURE = 1
+    ERROR = 2
 
 
 @app.callback(invoke_without_command=True)
@@ -29,11 +35,11 @@ def main(
 
     if version:
         typer.echo(f"{pkg_name} {pkg_version}")
-        raise typer.Exit()
+        raise typer.Exit(code=ExitCode.SUCCESS)
 
     if ctx.invoked_subcommand is None:
         typer.echo(f"{pkg_name} {pkg_version} ready. See --help for usage.")
-        raise typer.Exit()
+        raise typer.Exit(code=ExitCode.SUCCESS)
 
     if verbose:
         level = logging.DEBUG
@@ -57,10 +63,6 @@ def setup_logging(level: int) -> None:
     root.addHandler(handler)
     root.setLevel(level)
 
-    logger.debug(
-        "Logging with level=%s to %s", logging.getLevelName(level), handler.stream.name
-    )
-
 
 @app.command()
 def create_archive(
@@ -80,11 +82,11 @@ def create_archive(
 
     if not directory.exists():
         typer.secho(f"Directory not found: {directory}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=ExitCode.ERROR)
 
     if not directory.is_dir():
         typer.secho(f"Not a directory: {directory}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=ExitCode.ERROR)
 
     try:
         archive_path = core.create_archive(
@@ -98,21 +100,30 @@ def create_archive(
         message = "Failed to create archive"
         logger.exception(message)
         typer.secho(f"{message} (see log for details).", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1) from exc
+        raise typer.Exit(code=ExitCode.FAILURE) from exc
 
 
 @app.command()
-def delete_branches() -> None:
-    """Delete local git branches and remote-tracking refs except protected ones."""
+def delete_branches(
+    refs: bool = typer.Option(
+        False, "--refs", help="Delete remote-tracking git branch refs"
+    ),
+) -> None:
+    """Delete local git branches and remote-tracking refs except protected ones.
+
+    Example:
+    $ fops delete-branches
+    $ fops delete-branches --refs
+    """
     try:
         core.delete_local_branches()
-        core.delete_remote_branch_refs()
+        if refs:
+            core.delete_remote_branch_refs()
         typer.secho("Done.", fg=typer.colors.GREEN)
     except Exception as exc:
-        message = "Failed to delete branches"
-        logger.exception(message)
-        typer.secho(f"{message} (see log for details).", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1) from exc
+        logger.exception("failed to delete branches")
+        typer.secho("Failed to delete branches.", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=ExitCode.FAILURE) from exc
 
 
 @app.command()
@@ -128,20 +139,19 @@ def delete_cache(
 
     if not directory.exists():
         typer.secho(f"Directory not found: {directory}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=ExitCode.ERROR)
 
     if not directory.is_dir():
         typer.secho(f"Not a directory: {directory}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=ExitCode.ERROR)
 
     try:
         core.delete_cache(directory_path=directory)
         typer.secho("Done.", fg=typer.colors.GREEN)
     except Exception as exc:
-        message = "Failed to delete cache"
-        logger.exception(message)
-        typer.secho(f"{message} (see log for details).", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1) from exc
+        logger.exception("failed to delete cache")
+        typer.secho("Failed to delete cache.", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=ExitCode.FAILURE) from exc
 
 
 @app.command()
@@ -171,11 +181,11 @@ def rename_extensions(
 
     if not directory.exists():
         typer.secho(f"Directory not found: {directory}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=ExitCode.ERROR)
 
     if not directory.is_dir():
         typer.secho(f"Not a directory: {directory}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=ExitCode.ERROR)
 
     try:
         core.rename_extensions(
@@ -189,7 +199,6 @@ def rename_extensions(
         )
         typer.secho("Done.", fg=typer.colors.GREEN)
     except Exception as exc:
-        message = "Failed to rename extensions"
-        logger.exception(message)
-        typer.secho(f"{message} (see log for details).", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1) from exc
+        logger.exception("failed to rename")
+        typer.secho("Failed to rename.", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=ExitCode.FAILURE) from exc
