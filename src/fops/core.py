@@ -7,6 +7,8 @@ __all__ = (
 )
 
 import contextlib
+import datetime as dt
+import inspect
 import logging
 import os
 import shlex
@@ -16,9 +18,10 @@ import tempfile
 from collections.abc import Sequence
 from pathlib import Path
 from shutil import copy2, get_archive_formats, make_archive
-from typing import Final, TypeAlias
+from typing import Final, TypeAlias, TypeVar
 
-from fops import utils
+T = TypeVar("T")
+
 
 PathLikeStr: TypeAlias = str | Path | os.PathLike[str]
 
@@ -92,7 +95,7 @@ def create_archive(
         )
 
     if archive_name is None:
-        base_name = f"{utils.utctimestamp()}_{dir_path.stem}"
+        base_name = f"{utctimestamp()}_{dir_path.stem}"
     else:
         if Path(archive_name).name != archive_name:
             raise ValueError("archive_name must not contain directory components")
@@ -146,7 +149,7 @@ def create_archive(
 
 def delete_local_branches() -> None:
     """Delete local git branches except protected ones."""
-    logger.debug("running '%s'", utils.get_caller_name())
+    logger.debug("running '%s'", get_caller_name())
     current = get_current_branch_name()
     exclude = PROTECTED_BRANCHES | {current}
 
@@ -160,7 +163,7 @@ def delete_local_branches() -> None:
     logger.debug("deleting %d local branch(es): %s", len(to_delete), to_delete)
     for branch in to_delete:
         try:
-            run_command(f"git branch -D {branch}", label=utils.get_caller_name())
+            run_command(f"git branch -D {branch}", label=get_caller_name())
             logger.info("deleted local branch '%s'", branch)
         except subprocess.CalledProcessError as exc:
             logger.exception(
@@ -173,7 +176,7 @@ def delete_local_branches() -> None:
 
 def delete_remote_branch_refs() -> None:
     """Delete remote-tracking git branch refs except protected ones."""
-    logger.debug("running '%s'", utils.get_caller_name())
+    logger.debug("running '%s'", get_caller_name())
     current = get_current_branch_name()
     exclude = PROTECTED_BRANCHES | {current}
 
@@ -187,7 +190,7 @@ def delete_remote_branch_refs() -> None:
     logger.debug("deleting %d remote ref(s): %s", len(to_delete), to_delete)
     for ref in to_delete:
         try:
-            run_command(f"git branch -r -d {ref}", label=utils.get_caller_name())
+            run_command(f"git branch -r -d {ref}", label=get_caller_name())
             logger.info("deleted remote ref '%s'", ref)
         except subprocess.CalledProcessError as exc:
             logger.exception(
@@ -200,12 +203,12 @@ def delete_remote_branch_refs() -> None:
 
 def get_current_branch_name() -> str:
     """Return current branch name as string."""
-    return run_command("git rev-parse --abbrev-ref HEAD", label=utils.get_caller_name())
+    return run_command("git rev-parse --abbrev-ref HEAD", label=get_caller_name())
 
 
 def get_local_branch_names() -> list[str]:
     """Return list of local branch names."""
-    out = run_command("git branch", label=utils.get_caller_name())
+    out = run_command("git branch", label=get_caller_name())
     branches: list[str] = []
     for line in out.splitlines():
         branches.append(line.lstrip("*").strip())
@@ -214,7 +217,7 @@ def get_local_branch_names() -> list[str]:
 
 def get_remote_branch_names() -> list[str]:
     """Return list of remote-tracking branch refs."""
-    out = run_command("git branch --remotes", label=utils.get_caller_name())
+    out = run_command("git branch --remotes", label=get_caller_name())
     branches: list[str] = []
     for line in out.splitlines():
         line = line.strip()
@@ -245,7 +248,7 @@ def rename_extensions(
     """Rename (or copy) files in a directory by changing their extensions."""
     logger.debug(
         "running '%s' with %s",
-        utils.get_caller_name(),
+        get_caller_name(),
         {
             "directory_path": directory_path,
             "old_ext": old_ext,
@@ -370,3 +373,25 @@ def safe_copy(
             if tmp_path is not None and tmp_path.exists():
                 tmp_path.unlink()
         raise
+
+
+def get_caller_name(depth: int = 1) -> str:
+    """Return the name of the calling function; depth=1 is the immediate caller."""
+    if depth < 1:
+        raise ValueError(f"invalid {depth=!r}; expected >= 1")
+
+    frame = inspect.currentframe()
+    try:
+        caller = frame
+        for _ in range(depth):
+            caller = caller.f_back if caller is not None else None
+        if caller is None:
+            raise RuntimeError("expected to be executed within a function")
+        return caller.f_code.co_name
+    finally:
+        del frame
+
+
+def utctimestamp() -> str:
+    """Return UTC timestamp string."""
+    return dt.datetime.now(dt.UTC).strftime("%Y%m%d%H%M%S")

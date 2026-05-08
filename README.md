@@ -10,5 +10,5 @@
 </div>
 
 ```shell
-uv tool install 'fops[cli]'
+uv tool install fops
 ```

@@ -6,15 +6,15 @@ from tempfile import TemporaryDirectory
 import pytest
 
 import fops
-from fops import utils
+from fops import core
 
 
 class TestCreateArchive:
     def _patch_timestamp(self, value: str):
         """Patch utils.utctimestamp, return a restore callable."""
-        orig = utils.utctimestamp
-        utils.utctimestamp = lambda: value
-        return lambda: setattr(utils, "utctimestamp", orig)
+        orig = core.utctimestamp
+        core.utctimestamp = lambda: value
+        return lambda: setattr(core, "utctimestamp", orig)
 
     def _chdir(self, new_cwd: str):
         """Change cwd, return a restore callable."""
