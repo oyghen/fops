@@ -112,7 +112,7 @@ def delete_branches(
         False, "--refs", help="Delete remote-tracking git branch refs as well."
     ),
     protect: Annotated[
-        list[str] | None, typer.Option(help="Branch to protect.")
+        list[str] | None, typer.Option(help="Branch to protect from deletion.")
     ] = None,
 ) -> None:
     """Delete local git branches and remote-tracking refs except protected ones.
