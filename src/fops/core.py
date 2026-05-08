@@ -27,8 +27,6 @@ PathLikeStr: TypeAlias = str | Path | os.PathLike[str]
 
 logger = logging.getLogger(__name__)
 
-PROTECTED_BRANCHES: Final[frozenset[str]] = frozenset({"main", "master", "develop"})
-
 CACHE_DIRECTORIES: Final[tuple[str, ...]] = (
     "__pycache__",
     ".pytest_cache",
@@ -147,24 +145,19 @@ def create_archive(
     return Path(archive_path)
 
 
-def delete_local_branches() -> None:
+def delete_local_branches(protected_branches: frozenset[str]) -> int | None:
     """Delete local git branches except protected ones."""
-    logger.debug("running '%s'", get_caller_name())
-    current = get_current_branch_name()
-    exclude = PROTECTED_BRANCHES | {current}
-
     local = get_local_branch_names()
-    to_delete = [b for b in local if b not in exclude]
-
+    to_delete = [b for b in local if b not in protected_branches]
     if not to_delete:
         logger.info("no local branches to delete")
         return
 
-    logger.debug("deleting %d local branch(es): %s", len(to_delete), to_delete)
+    logger.debug("local branches to delete: %d", len(to_delete))
     for branch in to_delete:
         try:
-            run_command(f"git branch -D {branch}", label=get_caller_name())
-            logger.info("deleted local branch '%s'", branch)
+            run_command(f"git branch -D {branch}")
+            logger.info("deleted: %s", branch)
         except subprocess.CalledProcessError as exc:
             logger.exception(
                 "failed deleting local branch %s; exit=%s; stderr=%s",
@@ -173,25 +166,22 @@ def delete_local_branches() -> None:
                 getattr(exc, "stderr", None),
             )
 
+    return len(to_delete)
 
-def delete_remote_branch_refs() -> None:
+
+def delete_remote_branch_refs(protected_branches: frozenset[str]) -> int | None:
     """Delete remote-tracking git branch refs except protected ones."""
-    logger.debug("running '%s'", get_caller_name())
-    current = get_current_branch_name()
-    exclude = PROTECTED_BRANCHES | {current}
-
     remote = get_remote_branch_names()
-    to_delete = [r for r in remote if r.split("/", 1)[-1] not in exclude]
-
+    to_delete = [r for r in remote if r.split("/", 1)[-1] not in protected_branches]
     if not to_delete:
         logger.info("no remote-tracking refs to delete")
         return
 
-    logger.debug("deleting %d remote ref(s): %s", len(to_delete), to_delete)
+    logger.debug("remote refs to delete: %d", len(to_delete))
     for ref in to_delete:
         try:
-            run_command(f"git branch -r -d {ref}", label=get_caller_name())
-            logger.info("deleted remote ref '%s'", ref)
+            run_command(f"git branch -r -d {ref}")
+            logger.info("deleted: %s", ref)
         except subprocess.CalledProcessError as exc:
             logger.exception(
                 "failed deleting remote ref %s; exit=%s; stderr=%s",
@@ -200,15 +190,17 @@ def delete_remote_branch_refs() -> None:
                 getattr(exc, "stderr", None),
             )
 
+    return len(to_delete)
 
-def get_current_branch_name() -> str:
-    """Return current branch name as string."""
-    return run_command("git rev-parse --abbrev-ref HEAD", label=get_caller_name())
+
+def get_current_branch() -> str:
+    """Return the current branch name."""
+    return run_command("git rev-parse --abbrev-ref HEAD")
 
 
 def get_local_branch_names() -> list[str]:
     """Return list of local branch names."""
-    out = run_command("git branch", label=get_caller_name())
+    out = run_command("git branch")
     branches: list[str] = []
     for line in out.splitlines():
         branches.append(line.lstrip("*").strip())
@@ -217,7 +209,7 @@ def get_local_branch_names() -> list[str]:
 
 def get_remote_branch_names() -> list[str]:
     """Return list of remote-tracking branch refs."""
-    out = run_command("git branch --remotes", label=get_caller_name())
+    out = run_command("git branch --remotes")
     branches: list[str] = []
     for line in out.splitlines():
         line = line.strip()
@@ -227,11 +219,11 @@ def get_remote_branch_names() -> list[str]:
     return branches
 
 
-def run_command(command: str | Sequence[str], label: str) -> str:
+def run_command(command: str | Sequence[str]) -> str:
     """Return stdout as string of the executed command."""
     cmd = shlex.split(command) if isinstance(command, str) else list(command)
     response = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    logger.debug("'%s' ran '%s'", label, " ".join(cmd))
+    logger.debug("run cmd: %s", " ".join(cmd))
     return response.stdout.strip()
 
 

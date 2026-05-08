@@ -2,7 +2,7 @@ import logging
 import sys
 from enum import IntEnum
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Final
 
 import typer
 
@@ -12,6 +12,9 @@ from fops import core
 logger = logging.getLogger(__name__)
 
 app = typer.Typer(add_completion=False)
+
+
+PROTECTED_BRANCHES: Final[frozenset[str]] = frozenset({"main", "master", "develop"})
 
 
 class ExitCode(IntEnum):
@@ -106,23 +109,46 @@ def create_archive(
 @app.command()
 def delete_branches(
     refs: bool = typer.Option(
-        False, "--refs", help="Delete remote-tracking git branch refs"
+        False, "--refs", help="Delete remote-tracking git branch refs as well."
     ),
+    protect: Annotated[
+        list[str] | None, typer.Option(help="Branch to protect.")
+    ] = None,
 ) -> None:
     """Delete local git branches and remote-tracking refs except protected ones.
 
     Example:
     $ fops delete-branches
     $ fops delete-branches --refs
+    $ fops delete-branches --protect some_branch --protect another_branch
     """
     try:
-        core.delete_local_branches()
+        current = core.get_current_branch()
+        protected = PROTECTED_BRANCHES.union(current).union(protect or {})
+
+        num_deleted_branches = core.delete_local_branches(protected)
+        num_deleted_refs = None
         if refs:
-            core.delete_remote_branch_refs()
-        typer.secho("Done.", fg=typer.colors.GREEN)
+            num_deleted_refs = core.delete_remote_branch_refs(protected)
+
+        parts = []
+        if num_deleted_branches:
+            branch_label = "branch" if num_deleted_branches == 1 else "branches"
+            parts.append(f"deleted {num_deleted_branches} {branch_label}")
+        if num_deleted_refs:
+            ref_label = "ref" if num_deleted_refs == 1 else "refs"
+            parts.append(f"deleted {num_deleted_refs} {ref_label}")
+
+        message = ["done"]
+        if parts:
+            message.append(", ".join(parts))
+
+        typer.secho(": ".join(message), fg=typer.colors.GREEN, bold=True)
+
     except Exception as exc:
-        logger.exception("failed to delete branches")
-        typer.secho("Failed to delete branches.", fg=typer.colors.RED, err=True)
+        message = "failed to delete branches"
+        logger.exception(message)
+        typer.secho(message, fg=typer.colors.RED, err=True, bold=True)
         raise typer.Exit(code=ExitCode.FAILURE) from exc
 
 
