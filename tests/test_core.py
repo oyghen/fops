@@ -5,7 +5,6 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-import fops
 from fops import core
 
 
@@ -32,7 +31,7 @@ class TestCreateArchive:
             restore_ts = self._patch_timestamp("20250101010101")
             restore_cwd = self._chdir(workdir)
             try:
-                fops.core.create_archive(srcdir)  # uses patched timestamp
+                core.create_archive(srcdir)  # uses patched timestamp
                 expected = Path(workdir) / f"20250101010101_{Path(srcdir).stem}.zip"
                 assert expected.exists(), "archive file was not created"
 
@@ -52,7 +51,7 @@ class TestCreateArchive:
             restore_ts = self._patch_timestamp("20250101010101")
             restore_cwd = self._chdir(workdir)
             try:
-                fops.core.create_archive(srcdir, archive_name="myarchive")
+                core.create_archive(srcdir, archive_name="myarchive")
                 expected = Path(workdir) / "myarchive.zip"
                 assert expected.exists()
                 extract_dir = Path(workdir) / "ex2"
@@ -71,7 +70,7 @@ class TestCreateArchive:
             restore_ts = self._patch_timestamp("20250101010101")
             restore_cwd = self._chdir(workdir)
             try:
-                fops.core.create_archive(srcdir, archive_name="pat", patterns=["*.md"])
+                core.create_archive(srcdir, archive_name="pat", patterns=["*.md"])
                 expected = Path(workdir) / "pat.zip"
                 assert expected.exists()
                 extract_dir = Path(workdir) / "ex3"
@@ -93,9 +92,7 @@ class TestCreateArchive:
             restore_cwd = self._chdir(workdir)
             try:
                 # gztar should preserve symlink entries
-                fops.core.create_archive(
-                    srcdir, archive_name="sym", archive_format="gztar"
-                )
+                core.create_archive(srcdir, archive_name="sym", archive_format="gztar")
                 expected = Path(workdir) / "sym.tar.gz"
                 assert expected.exists()
                 extract_dir = Path(workdir) / "ex4"
@@ -119,7 +116,7 @@ class TestCreateArchive:
             restore_cwd = self._chdir(workdir)
             try:
                 with pytest.raises(ValueError):
-                    fops.core.create_archive("/path/does/not/exist")
+                    core.create_archive("/path/does/not/exist")
             finally:
                 restore_cwd()
                 restore_ts()
@@ -133,7 +130,7 @@ class TestCreateArchive:
             restore_cwd = self._chdir(workdir)
             try:
                 with pytest.raises(ValueError):
-                    fops.core.create_archive(srcdir, archive_format="INVALID_FORMAT")
+                    core.create_archive(srcdir, archive_format="INVALID_FORMAT")
             finally:
                 restore_cwd()
                 restore_ts()
