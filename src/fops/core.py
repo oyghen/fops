@@ -1,23 +1,9 @@
 __all__ = (
-    "PathLikeStr",
-    "PROTECTED_BRANCHES",
-    "CACHE_DIRECTORIES",
-    "CACHE_FILE_EXTENSIONS",
-    "delete_cache",
-    "confirm",
     "create_archive",
-    "iter_lines",
-    "terminal_width",
+    "delete_cache",
     "delete_local_branches",
     "delete_remote_branch_refs",
-    "get_current_branch_name",
-    "get_local_branch_names",
-    "get_remote_branch_names",
-    "get_last_commit_hash",
-    "run_command",
-    "get_installed_package_count",
     "rename_extensions",
-    "safe_copy",
 )
 
 import contextlib
@@ -26,12 +12,10 @@ import os
 import shlex
 import shutil
 import subprocess
-import sys
 import tempfile
-from collections.abc import Iterator, Sequence
-from importlib import metadata
+from collections.abc import Sequence
 from pathlib import Path
-from shutil import copy2, get_archive_formats, get_terminal_size, make_archive
+from shutil import copy2, get_archive_formats, make_archive
 from typing import Final, TypeAlias
 
 from fops import utils
@@ -86,33 +70,6 @@ def delete_cache(
             path.unlink()
             logger.info("deleted - %s", path)
     logger.info("done with deleting cache files")
-
-
-def confirm(prompt: str, default: str | None = None) -> bool:
-    """Return True if the user confirms ('yes'); repeats until valid input."""
-    if default not in (None, "yes", "no"):
-        raise ValueError(f"invalid {default=!r}; expected None, 'yes', or 'no'")
-
-    true_tokens = frozenset(("y", "yes", "t", "true", "on", "1"))
-    false_tokens = frozenset(("n", "no", "f", "false", "off", "0"))
-    prompt_map = {None: "[y/n]", "yes": "[Y/n]", "no": "[y/N]"}
-    suffix = prompt_map[default]
-
-    while True:
-        reply = input(f"{prompt} {suffix} ").strip().lower()
-
-        if not reply:
-            if default is not None:
-                return default == "yes"
-            print("Please respond with 'yes' or 'no'.")
-            continue
-
-        if reply in true_tokens:
-            return True
-        if reply in false_tokens:
-            return False
-
-        print("Please respond with 'yes' or 'no'.")
 
 
 def create_archive(
@@ -185,26 +142,6 @@ def create_archive(
         )
 
     return Path(archive_path)
-
-
-def iter_lines(
-    filepath: PathLikeStr,
-    encoding: str | None = None,
-    errors: str | None = None,
-    newline: str | None = None,
-) -> Iterator[str]:
-    """Return an iterator over text lines from filepath."""
-    path = os.fspath(filepath)
-    with open(path, encoding=encoding, errors=errors, newline=newline) as fh:
-        yield from fh
-
-
-def terminal_width(default: int = 79) -> int:
-    """Return the current terminal width or a fallback value."""
-    try:
-        return get_terminal_size().columns
-    except OSError:
-        return default
 
 
 def delete_local_branches() -> None:
@@ -287,55 +224,12 @@ def get_remote_branch_names() -> list[str]:
     return branches
 
 
-def get_last_commit_hash(max_length: int | None = None) -> str:
-    """Return the full or truncated commit hash of the current branch."""
-    if max_length is not None:
-        if not isinstance(max_length, int):
-            raise TypeError(
-                f"unsupported type {type(max_length).__name__!r}; expected int or None"
-            )
-        if max_length < 1:
-            raise ValueError(f"invalid value {max_length!r}; expected >= 1")
-
-    commit = run_command("git rev-parse HEAD", label=utils.get_caller_name())
-    if not commit:
-        raise RuntimeError("git returned an empty commit hash")
-
-    return commit if max_length is None else commit[:max_length]
-
-
 def run_command(command: str | Sequence[str], label: str) -> str:
     """Return stdout as string of the executed command."""
     cmd = shlex.split(command) if isinstance(command, str) else list(command)
     response = subprocess.run(cmd, capture_output=True, text=True, check=True)
     logger.debug("'%s' ran '%s'", label, " ".join(cmd))
     return response.stdout.strip()
-
-
-def get_installed_package_count() -> int:
-    """Return the number of installed packages for the current Python environment."""
-    try:
-        count = sum(1 for _ in metadata.distributions())
-    except Exception:
-        count = 0
-
-    # fallback: use the same interpreter's pip to get a reliable package list
-    if count < 10:
-        try:
-            proc = subprocess.run(
-                [sys.executable, "-m", "pip", "list", "--format=freeze"],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            # ignore blank lines and count non-empty entries
-            lines = [ln for ln in proc.stdout.splitlines() if ln.strip()]
-            return len(lines)
-        except (subprocess.SubprocessError, OSError):
-            # if pip fails, return what metadata provided (possibly 0)
-            return int(count)
-
-    return int(count)
 
 
 def rename_extensions(

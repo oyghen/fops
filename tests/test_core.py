@@ -1,65 +1,12 @@
-import builtins
 import os
 import shutil
-import types
-from collections.abc import Iterable, Iterator
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import NamedTuple
 
 import pytest
 
 import fops
 from fops import utils
-
-
-class TestConfirm:
-    def test_accepts_yes(self, monkeypatch):
-        monkeypatch.setattr(builtins, "input", self.patch_input(["y"]))
-        assert fops.core.confirm("Proceed?") is True
-
-    def test_accepts_no(self, monkeypatch):
-        monkeypatch.setattr(builtins, "input", self.patch_input(["n"]))
-        assert fops.core.confirm("Proceed?") is False
-
-    def test_uses_default_yes_on_empty_reply(self, monkeypatch):
-        monkeypatch.setattr(builtins, "input", self.patch_input([""]))
-        assert fops.core.confirm("Proceed?", default="yes") is True
-
-    def test_uses_default_no_on_empty_reply(self, monkeypatch):
-        monkeypatch.setattr(builtins, "input", self.patch_input([""]))
-        assert fops.core.confirm("Proceed?", default="no") is False
-
-    def test_reprompts_on_invalid_then_accepts(self, monkeypatch, capsys):
-        monkeypatch.setattr(builtins, "input", self.patch_input(["maybe", "yes"]))
-        result = fops.core.confirm("Proceed?")
-        captured = capsys.readouterr()
-        assert "Please respond with 'yes' or 'no'." in captured.out
-        assert result is True
-
-    def test_whitespace_counts_as_empty_and_reprompts(self, monkeypatch, capsys):
-        monkeypatch.setattr(builtins, "input", self.patch_input(["   ", "1"]))
-        result = fops.core.confirm("Proceed?")
-        captured = capsys.readouterr()
-        assert "Please respond with 'yes' or 'no'." in captured.out
-        assert result is True  # '1' maps to true tokens
-
-    def test_invalid_default_raises(self):
-        with pytest.raises(ValueError):
-            fops.core.confirm("Proceed?", default="maybe")
-
-    @staticmethod
-    def patch_input(responses: list[str]):
-        """Return a stub for builtins.input that yields the given responses."""
-        iterator = iter(responses)
-
-        def _input(prompt: str) -> str:
-            try:
-                return next(iterator)
-            except StopIteration as exc:
-                raise AssertionError("test provided too few responses") from exc
-
-        return _input
 
 
 class TestCreateArchive:
@@ -190,95 +137,3 @@ class TestCreateArchive:
             finally:
                 restore_cwd()
                 restore_ts()
-
-
-class TestIterLines:
-    def test_returns_generator(self):
-        with TemporaryDirectory() as tmp:
-            p = Path(tmp) / "t.txt"
-            p.write_text("x\n", encoding="utf-8")
-
-            gen = fops.core.iter_lines(p)
-            assert isinstance(gen, types.GeneratorType)
-            gen.close()
-
-    def test_reads_lines_preserving_newlines(self):
-        with TemporaryDirectory() as tmp:
-            p = Path(tmp) / "t.txt"
-            p.write_text("a\nb\n", encoding="utf-8")
-
-            assert list(fops.core.iter_lines(p)) == ["a\n", "b\n"]
-
-    def test_accepts_str_path(self):
-        with TemporaryDirectory() as tmp:
-            p = Path(tmp) / "t.txt"
-            p.write_text("1\n2\n", encoding="utf-8")
-
-            assert list(fops.core.iter_lines(str(p))) == ["1\n", "2\n"]
-
-    def test_encoding_and_errors(self):
-        with TemporaryDirectory() as tmp:
-            p = Path(tmp) / "t.txt"
-            p.write_text("café\n", encoding="utf-8")
-
-            result = list(fops.core.iter_lines(p, encoding="ascii", errors="replace"))
-            assert result == ["caf\ufffd\ufffd\n"]
-
-    def test_exhaustion_closes_generator(self):
-        with TemporaryDirectory() as tmp:
-            p = Path(tmp) / "t.txt"
-            p.write_text("line\n", encoding="utf-8")
-
-            gen = fops.core.iter_lines(p)
-            assert list(gen) == ["line\n"]
-            assert getattr(gen, "gi_frame", None) is None
-
-    def test_explicit_close_closes_file(self):
-        with TemporaryDirectory() as tmp:
-            p = Path(tmp) / "t.txt"
-            p.write_text("line\n", encoding="utf-8")
-
-            gen = fops.core.iter_lines(p)
-            assert next(gen) == "line\n"
-            gen.close()
-            assert getattr(gen, "gi_frame", None) is None
-
-    def test_pipe_lines(self):
-        with TemporaryDirectory() as tmp:
-            p = Path(tmp) / "t.txt"
-            p.write_text("one\ntwo\nthree\nfour\n", encoding="utf-8")
-
-            def strip_lines(lines: Iterable[str]) -> Iterator[str]:
-                """Return an iterator yielding stripped lines."""
-                return (s.strip() for s in lines)
-
-            def filter_len_gt_3(lines: Iterable[str]) -> Iterator[str]:
-                """Return an iterator filtering lines with length > 3."""
-                return (s for s in lines if len(s) > 3)
-
-            funcs = [strip_lines, filter_len_gt_3, tuple]
-            result = utils.pipe(fops.core.iter_lines(p), funcs)
-
-            assert result == ("three", "four")
-
-
-class TestTerminalWidth:
-    class TerminalSize(NamedTuple):
-        columns: int
-        lines: int
-
-    def test_from_shutil(self, monkeypatch):
-        # simulate a terminal width of 100
-        monkeypatch.setattr(
-            fops.core,
-            "get_terminal_size",
-            lambda: self.TerminalSize(columns=100, lines=24),
-        )
-        assert fops.core.terminal_width(default=79) == 100
-
-    def test_fallback(self, monkeypatch):
-        def raise_oserror():
-            raise OSError("no tty")
-
-        monkeypatch.setattr(fops.core, "get_terminal_size", raise_oserror)
-        assert fops.core.terminal_width(default=79) == 79
