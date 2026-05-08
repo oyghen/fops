@@ -14,13 +14,27 @@ logger = logging.getLogger(__name__)
 app = typer.Typer(add_completion=False)
 
 
-PROTECTED_BRANCHES: Final[frozenset[str]] = frozenset({"main", "master", "develop"})
+PROTECTED_BRANCHES: Final[set[str]] = {"main", "master", "develop"}
+
+CACHE_DIR_PATTERNS: Final[set[str]] = {
+    "__pycache__",
+    ".pytest_cache",
+    ".ipynb_checkpoints",
+    ".ruff_cache",
+    "spark-warehouse",
+}
+
+
+CACHE_FILE_PATTERNS: Final[set[str]] = {
+    "*.py[co]",
+    ".coverage",
+    ".coverage.*",
+}
 
 
 class ExitCode(IntEnum):
     SUCCESS = 0
-    FAILURE = 1
-    ERROR = 2
+    ERROR = 1
 
 
 @app.callback(invoke_without_command=True)
@@ -31,7 +45,7 @@ def main(
     quiet: bool = typer.Option(False, "--quiet", help="Suppress info logging."),
 ) -> None:
     if verbose and quiet:
-        raise typer.BadParameter("Cannot use --verbose and --quiet together")
+        raise typer.BadParameter("cannot use --verbose and --quiet together")
 
     pkg_name = fops.__name__
     pkg_version = typer.style(fops.__version__, fg=typer.colors.CYAN)
@@ -55,6 +69,7 @@ def main(
 
 
 def setup_logging(level: int) -> None:
+    """Set up application logging configuration."""
     root = logging.getLogger()
     if root.handlers:
         root.handlers.clear()
@@ -67,9 +82,25 @@ def setup_logging(level: int) -> None:
     root.setLevel(level)
 
 
+def validate_directory_path(directory_path: str) -> Path:
+    """Return a validated absolute directory path."""
+    path = Path(directory_path).resolve()
+    if not path.is_dir():
+        raise typer.BadParameter("must be an existing directory")
+    return path
+
+
 @app.command()
 def create_archive(
-    directory_path: Annotated[Path, typer.Argument(help="Directory to process.")],
+    directory_path: Annotated[
+        Path,
+        typer.Argument(
+            help="Directory to process.",
+            show_default="cwd",
+            default_factory=lambda: Path.cwd(),
+            callback=validate_directory_path,
+        ),
+    ],
     pattern: Annotated[
         list[str] | None, typer.Option(help="File pattern to include.")
     ] = None,
@@ -81,19 +112,9 @@ def create_archive(
     Example:
     $ fops create-archive . --pattern '*.txt' --pattern '*.md'
     """
-    directory = Path(directory_path).resolve()
-
-    if not directory.exists():
-        typer.secho(f"Directory not found: {directory}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=ExitCode.ERROR)
-
-    if not directory.is_dir():
-        typer.secho(f"Not a directory: {directory}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=ExitCode.ERROR)
-
     try:
         archive_path = core.create_archive(
-            directory,
+            directory_path,
             archive_name,
             pattern,
             archive_format,
@@ -103,7 +124,7 @@ def create_archive(
         message = "Failed to create archive"
         logger.exception(message)
         typer.secho(f"{message} (see log for details).", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=ExitCode.FAILURE) from exc
+        raise typer.Exit(code=ExitCode.ERROR) from exc
 
 
 @app.command()
@@ -149,40 +170,67 @@ def delete_branches(
         message = "cannot delete branches"
         logger.exception(message)
         typer.secho(f"error: {message}", fg=typer.colors.RED, err=True, bold=True)
-        raise typer.Exit(code=ExitCode.FAILURE) from exc
+        raise typer.Exit(code=ExitCode.ERROR) from exc
 
 
 @app.command()
 def delete_cache(
-    directory_path: Annotated[Path, typer.Argument(help="Directory to process.")],
+    directory_path: Annotated[
+        Path,
+        typer.Argument(
+            help="Directory to process.",
+            show_default="cwd",
+            default_factory=lambda: Path.cwd(),
+            callback=validate_directory_path,
+        ),
+    ],
+    dp: Annotated[
+        list[str] | None, typer.Option(help="Directory pattern to include.")
+    ] = None,
+    fp: Annotated[
+        list[str] | None, typer.Option(help="File pattern to include.")
+    ] = None,
 ) -> None:
-    """Delete cache directories and files.
+    """Delete cache directories and files in the specified directory.
 
     Example:
-    $ fops delete-cache .
+    $ fops delete-cache
+    $ fops delete-cache some_dir
+    $ fops delete-cache --dp '*.egg-info'
+    $ fops delete-cache --dp '*.egg-info' --fp '*.cache'
     """
-    directory = Path(directory_path).resolve()
-
-    if not directory.exists():
-        typer.secho(f"Directory not found: {directory}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=ExitCode.ERROR)
-
-    if not directory.is_dir():
-        typer.secho(f"Not a directory: {directory}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=ExitCode.ERROR)
+    cache_dir_patterns = CACHE_DIR_PATTERNS.union(dp or {})
+    cache_file_patterns = CACHE_FILE_PATTERNS.union(fp or {})
 
     try:
-        core.delete_cache(directory_path=directory)
-        typer.secho("Done.", fg=typer.colors.GREEN)
+        num_deleted = core.delete_cache_dirs(directory_path, cache_dir_patterns)
+        num_deleted += core.delete_cache_files(directory_path, cache_file_patterns)
+
+        message = "done"
+        if num_deleted:
+            item_label = "item" if num_deleted == 1 else "items"
+            message += f": deleted {num_deleted} {item_label}"
+
+        typer.secho(message, fg=typer.colors.GREEN, bold=True)
+
     except Exception as exc:
-        logger.exception("failed to delete cache")
-        typer.secho("Failed to delete cache.", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=ExitCode.FAILURE) from exc
+        message = "cannot delete cache"
+        logger.exception(message)
+        typer.secho(f"error: {message}", fg=typer.colors.RED, err=True, bold=True)
+        raise typer.Exit(code=ExitCode.ERROR) from exc
 
 
 @app.command()
 def rename_extensions(
-    directory_path: Annotated[Path, typer.Argument(help="Directory to process.")],
+    directory_path: Annotated[
+        Path,
+        typer.Argument(
+            help="Directory to process.",
+            show_default="cwd",
+            default_factory=lambda: Path.cwd(),
+            callback=validate_directory_path,
+        ),
+    ],
     old_ext: Annotated[
         str, typer.Argument(help="File extension to match (e.g. 'txt' or '.txt').")
     ],
@@ -203,19 +251,9 @@ def rename_extensions(
     Example:
     $ fops rename-extensions --create-copy --recursive . .txt .md --dry-run
     """
-    directory = Path(directory_path).resolve()
-
-    if not directory.exists():
-        typer.secho(f"Directory not found: {directory}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=ExitCode.ERROR)
-
-    if not directory.is_dir():
-        typer.secho(f"Not a directory: {directory}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=ExitCode.ERROR)
-
     try:
         core.rename_extensions(
-            directory,
+            directory_path,
             old_ext,
             new_ext,
             create_copy=create_copy,
@@ -227,4 +265,4 @@ def rename_extensions(
     except Exception as exc:
         logger.exception("failed to rename")
         typer.secho("Failed to rename.", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=ExitCode.FAILURE) from exc
+        raise typer.Exit(code=ExitCode.ERROR) from exc

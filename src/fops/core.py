@@ -1,6 +1,7 @@
 __all__ = (
     "create_archive",
-    "delete_cache",
+    "delete_cache_dirs",
+    "delete_cache_files",
     "delete_local_branches",
     "delete_remote_branch_refs",
     "rename_extensions",
@@ -18,63 +19,16 @@ import tempfile
 from collections.abc import Sequence
 from pathlib import Path
 from shutil import copy2, get_archive_formats, make_archive
-from typing import Final, TypeAlias, TypeVar
+from typing import TypeVar
 
 T = TypeVar("T")
 
 
-PathLikeStr: TypeAlias = str | Path | os.PathLike[str]
-
 logger = logging.getLogger(__name__)
-
-CACHE_DIRECTORIES: Final[tuple[str, ...]] = (
-    "__pycache__",
-    ".pytest_cache",
-    ".ipynb_checkpoints",
-    ".ruff_cache",
-    "spark-warehouse",
-)
-
-CACHE_FILE_EXTENSIONS: Final[tuple[str, ...]] = (
-    "*.py[co]",
-    ".coverage",
-    ".coverage.*",
-)
-
-
-def delete_cache(
-    directory_path: PathLikeStr,
-    cache_directories: Sequence[str] | None = None,
-    cache_file_extensions: Sequence[str] | None = None,
-) -> None:
-    """Delete cache directories and files in the specified directory."""
-    root = Path(directory_path).resolve()
-
-    if cache_directories is None:
-        cache_directories = CACHE_DIRECTORIES
-
-    if cache_file_extensions is None:
-        cache_file_extensions = CACHE_FILE_EXTENSIONS
-
-    for directory in cache_directories:
-        for path in root.rglob(directory):
-            if "venv" in str(path):
-                continue
-            shutil.rmtree(path.absolute(), ignore_errors=False)
-            logger.info("deleted - %s", path)
-    logger.info("done with deleting cache directories")
-
-    for file_extension in cache_file_extensions:
-        for path in root.rglob(file_extension):
-            if "venv" in str(path):
-                continue
-            path.unlink()
-            logger.info("deleted - %s", path)
-    logger.info("done with deleting cache files")
 
 
 def create_archive(
-    directory_path: PathLikeStr,
+    directory_path: Path,
     archive_name: str | None = None,
     patterns: Sequence[str] | None = None,
     archive_format: str = "zip",
@@ -145,7 +99,43 @@ def create_archive(
     return Path(archive_path)
 
 
-def delete_local_branches(protected_branches: frozenset[str]) -> int | None:
+def delete_cache_dirs(directory_path: Path, cache_dir_patterns: set[str]) -> int:
+    """Delete cache directories in the specified directory."""
+    count = 0
+    cwd = Path.cwd()
+    for dir_pattern in cache_dir_patterns:
+        try:
+            for path in directory_path.rglob(dir_pattern):
+                if "venv" in str(path):
+                    continue
+                shutil.rmtree(path.absolute(), ignore_errors=False)
+                logger.info("deleted: %s", path.relative_to(cwd))
+                count += 1
+        except Exception as exc:
+            logger.warning("skipping dir pattern: %s -> %s", dir_pattern, repr(exc))
+            continue
+    return count
+
+
+def delete_cache_files(directory_path: Path, cache_file_patterns: set[str]) -> int:
+    """Delete cache files in the specified directory."""
+    count = 0
+    cwd = Path.cwd()
+    for file_pattern in cache_file_patterns:
+        try:
+            for path in directory_path.rglob(file_pattern):
+                if "venv" in str(path):
+                    continue
+                path.unlink()
+                logger.info("deleted: %s", path.relative_to(cwd))
+                count += 1
+        except Exception as exc:
+            logger.warning("skipping file pattern: %s -> %s", file_pattern, repr(exc))
+            continue
+    return count
+
+
+def delete_local_branches(protected_branches: set[str]) -> int | None:
     """Delete local git branches except protected ones."""
     local = get_local_branch_names()
     to_delete = [b for b in local if b not in protected_branches]
@@ -159,13 +149,13 @@ def delete_local_branches(protected_branches: frozenset[str]) -> int | None:
             run_command(f"git branch -D {branch}")
             logger.info("deleted: %s", branch)
         except subprocess.CalledProcessError as exc:
-            logger.exception("error deleting local branch %s", branch)
+            logger.exception("error deleting local branch: %s", branch)
             raise exc
 
     return len(to_delete)
 
 
-def delete_remote_branch_refs(protected_branches: frozenset[str]) -> int | None:
+def delete_remote_branch_refs(protected_branches: set[str]) -> int | None:
     """Delete remote-tracking git branch refs except protected ones."""
     remote = get_remote_branch_names()
     to_delete = [r for r in remote if r.split("/", 1)[-1] not in protected_branches]
@@ -220,7 +210,7 @@ def run_command(command: str | Sequence[str]) -> str:
 
 
 def rename_extensions(
-    directory_path: PathLikeStr,
+    directory_path: Path,
     old_ext: str | None,
     new_ext: str,
     *,
@@ -326,12 +316,7 @@ def rename_extensions(
             logger.info("renamed %s -> %s", file_path, new_path)
 
 
-def safe_copy(
-    old_file: PathLikeStr,
-    new_file: PathLikeStr,
-    *,
-    overwrite: bool = False,
-) -> None:
+def safe_copy(old_file: Path, new_file: Path, *, overwrite: bool = False) -> None:
     """Safely copy a file with metadata and atomically replace the target if desired."""
     src = Path(old_file)
     dst = Path(new_file)
