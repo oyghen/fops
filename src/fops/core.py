@@ -62,13 +62,10 @@ def create_archive(
     with tempfile.TemporaryDirectory() as tmpdir:
         temp_dir = Path(tmpdir)
         for src in paths:
-            try:
-                rel_src = src.relative_to(target_dir)
-            except Exception:
-                continue
-
+            rel_src = src.relative_to(target_dir)
             logger.debug("processing: %s", rel_src)
             dst = temp_dir / rel_src
+
             if src.is_dir():
                 dst.mkdir(parents=True, exist_ok=True)
                 dir_count += 1
