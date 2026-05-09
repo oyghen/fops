@@ -34,11 +34,11 @@ wheels = [
 
 [[package]]
 name = "clsforge"
-version = "0.1.1"
+version = "0.1.2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/fc/c1/0ab55b31866a45630b42d11e0472c4c28b1271a13596d708a80eb86516f9/clsforge-0.1.1.tar.gz", hash = "sha256:89629a0932f6c0ff891768bc10c19b4b3723bd8c6b63a7e5c124c73259d00118", size = 2325, upload-time = "2026-05-08T13:01:16.556Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d3/a0/41cddd4d318c01da30ad7e6db8fb3d2a58f743e1be449cc4add69af2dac2/clsforge-0.1.2.tar.gz", hash = "sha256:ccfc87ada9928c3974cb8ae397d2b7ea36f9e8088a4a0f2220367b2a5dc6a0ad", size = 2325, upload-time = "2026-05-09T04:44:15.319Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ac/7e/7578e2c5f906c2207e91af6e11c0dd6218855f6afc729bad95e219f26f2d/clsforge-0.1.1-py3-none-any.whl", hash = "sha256:20ef53cafeb3e308a7c6e8a8730dc59dcfd75724ddd3ca7ba0af608ecc6d9c97", size = 3748, upload-time = "2026-05-08T13:01:17.24Z" },
+    { url = "https://files.pythonhosted.org/packages/df/61/295a7d765b74d1c5b5ecc16e7165b69534a617533aceee6b4f5c84771348/clsforge-0.1.2-py3-none-any.whl", hash = "sha256:4998eeb5cc4011dfe04a64ee3fab9365b3939a61ba334c9b71ddf4ab72bf1bd2", size = 3752, upload-time = "2026-05-09T04:44:15.986Z" },
 ]
 
 [[package]]
@@ -86,7 +86,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "clsforge", specifier = ">=0.1.1" },
+    { name = "clsforge", specifier = ">=0.1.2" },
     { name = "typer", specifier = ">=0.25.1" },
 ]
 
