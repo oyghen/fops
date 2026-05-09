@@ -101,29 +101,34 @@ def create_archive(
             callback=validate_directory_path,
         ),
     ],
+    name: Annotated[
+        str | None,
+        typer.Option(
+            help="Archive name.",
+            show_default="timestamp_dirname",
+        ),
+    ] = None,
+    fmt: str = typer.Option("zip", help="Archive format."),
     pattern: Annotated[
         list[str] | None, typer.Option(help="File pattern to include.")
     ] = None,
-    archive_name: Annotated[str | None, typer.Option(help="Archive name.")] = None,
-    archive_format: str = typer.Option("zip", help="Archive format."),
 ) -> None:
-    """Archive files.
+    """Archive files in target directory.
 
     Example:
-    $ fops create-archive . --pattern '*.txt' --pattern '*.md'
+    $ fops create-archive
+    $ fops create-archive some_dir
+    $ fops create-archive --name archive
+    $ fops create-archive --fmt gztar
+    $ fops create-archive --pattern '*.txt' --pattern '*.md'
     """
     try:
-        archive_path = core.create_archive(
-            directory_path,
-            archive_name,
-            pattern,
-            archive_format,
-        )
-        typer.secho(f"Done - {archive_path}", fg=typer.colors.GREEN)
+        archive_path = core.create_archive(directory_path, pattern, name, fmt)
+        typer.secho(f"done: created {archive_path}", fg=typer.colors.GREEN, bold=True)
     except Exception as exc:
-        message = "Failed to create archive"
+        message = "cannot create archive"
         logger.exception(message)
-        typer.secho(f"{message} (see log for details).", fg=typer.colors.RED, err=True)
+        typer.secho(f"error: {message}", fg=typer.colors.RED, err=True, bold=True)
         raise typer.Exit(code=ExitCode.ERROR) from exc
 
 

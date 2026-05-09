@@ -8,7 +8,6 @@ __all__ = (
 )
 
 import contextlib
-import datetime as dt
 import inspect
 import logging
 import os
@@ -21,6 +20,9 @@ from pathlib import Path
 from shutil import copy2, get_archive_formats, make_archive
 from typing import TypeVar
 
+import timeteller as tt
+from clsforge import InvalidChoiceError
+
 T = TypeVar("T")
 
 
@@ -29,74 +31,92 @@ logger = logging.getLogger(__name__)
 
 def create_archive(
     directory_path: Path,
-    archive_name: str | None = None,
     patterns: Sequence[str] | None = None,
+    archive_name: str | None = None,
     archive_format: str = "zip",
 ) -> Path:
-    """Return the path of the created archive file."""
-    dir_path = Path(directory_path).resolve()
-    if not dir_path.exists() or not dir_path.is_dir():
-        raise ValueError(f"{directory_path!r} does not exist or is not a directory")
-
-    patterns = list(patterns) if patterns else ["**/*"]
-    archive_format = archive_format.lower()
-    supported = {fmt for fmt, _ in get_archive_formats()}
-    if archive_format not in supported:
-        raise ValueError(
-            f"invalid choice {archive_format!r}; expected a value from {supported!r}"
-        )
-
-    if archive_name is None:
-        base_name = f"{utctimestamp()}_{dir_path.stem}"
-    else:
-        if Path(archive_name).name != archive_name:
-            raise ValueError("archive_name must not contain directory components")
-        base_name = archive_name
+    """Return path of the created archive relative to the current working directory."""
+    target_dir = directory_path
+    ptrns = ["**/*"] if patterns is None else tuple(patterns)
+    arch_name = (
+        f"{get_timestamp()}-{target_dir.stem}"
+        if archive_name is None
+        else validate_archive_name(archive_name)
+    )
+    arch_format = validate_archive_format(archive_format)
 
     # collect matches deterministically and deduplicate
-    matched: set[Path] = set()
-    for pattern in patterns:
-        matched.update(dir_path.rglob(pattern))
+    matched_paths: set[Path] = set()
+    for ptrn in ptrns:
+        matched_paths.update(target_dir.rglob(ptrn))
 
     # sort by relative path for deterministic archive contents/order
-    paths = sorted((p for p in matched), key=lambda p: str(p.relative_to(dir_path)))
+    paths = sorted(matched_paths, key=lambda p: str(p.relative_to(target_dir)))
 
+    dir_count = 0
+    file_count = 0
+    cwd = Path.cwd()
+    logger.info(
+        "processing %d path(s) in the target directory: %s", len(paths), target_dir
+    )
     with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir_path = Path(tmpdir)
-        for src_path in paths:
-            logger.debug("processing - %s", src_path)
+        temp_dir = Path(tmpdir)
+        for src in paths:
             try:
-                rel = src_path.relative_to(dir_path)
+                rel_src = src.relative_to(target_dir)
             except Exception:
-                # skip anything not under target (shouldn't happen with rglob)
                 continue
 
-            dst_path = tmpdir_path / rel
-            if src_path.is_dir():
-                dst_path.mkdir(parents=True, exist_ok=True)
+            logger.debug("processing: %s", rel_src)
+            dst = temp_dir / rel_src
+            if src.is_dir():
+                dst.mkdir(parents=True, exist_ok=True)
+                dir_count += 1
                 continue
 
-            dst_path.parent.mkdir(parents=True, exist_ok=True)
+            dst.parent.mkdir(parents=True, exist_ok=True)
 
-            if src_path.is_symlink():
-                target_link = os.readlink(src_path)
-                if dst_path.exists() or dst_path.is_symlink():
-                    dst_path.unlink()
-                os.symlink(target_link, dst_path)
+            if src.is_symlink():
+                target_link = os.readlink(src)
+                if dst.exists() or dst.is_symlink():
+                    dst.unlink()
+                os.symlink(target_link, dst)
+                file_count += 1
 
-            elif src_path.is_file():
-                copy2(src_path, dst_path)
+            elif src.is_file():
+                copy2(src, dst)
+                file_count += 1
 
             else:
                 continue
 
-        archive_path = make_archive(
-            str(Path(base_name)),
-            archive_format,
-            root_dir=str(tmpdir_path),
-        )
+        arch = make_archive(str(Path(arch_name)), arch_format, root_dir=str(temp_dir))
 
-    return Path(archive_path)
+    logger.info("number of archived directories: %s", dir_count)
+    logger.info("number of archived files: %s", file_count)
+
+    return Path(arch).relative_to(cwd)
+
+
+def get_timestamp() -> str:
+    """Return a timestamp string."""
+    return tt.core.utc_timestamp_ms().translate(str.maketrans({":": "-", ".": "-"}))
+
+
+def validate_archive_name(archive_name: str) -> str:
+    """Return validated archive name."""
+    if Path(archive_name).name != archive_name:
+        raise ValueError("archive_name must not contain directory components")
+    return archive_name
+
+
+def validate_archive_format(archive_format: str) -> str:
+    """Return validated archive format."""
+    fmt_choice = archive_format.lower()
+    fmt_choices = {fmt for fmt, _ in get_archive_formats()}
+    if fmt_choice not in fmt_choices:
+        raise InvalidChoiceError(fmt_choice, fmt_choices)
+    return fmt_choice
 
 
 def delete_cache_dirs(directory_path: Path, cache_dir_patterns: set[str]) -> int:
@@ -359,8 +379,3 @@ def get_caller_name(depth: int = 1) -> str:
         return caller.f_code.co_name
     finally:
         del frame
-
-
-def utctimestamp() -> str:
-    """Return UTC timestamp string."""
-    return dt.datetime.now(dt.UTC).strftime("%Y%m%d%H%M%S")

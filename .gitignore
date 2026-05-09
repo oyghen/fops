@@ -18,3 +18,7 @@ wheels/
 
 # User files
 user/
+
+# Archives
+*.zip
+*.tar.gz

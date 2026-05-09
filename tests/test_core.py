@@ -10,12 +10,12 @@ from fops import core
 
 class TestCreateArchive:
     def _patch_timestamp(self, value: str):
-        """Patch utils.utctimestamp, return a restore callable."""
-        orig = core.utctimestamp
-        core.utctimestamp = lambda: value
-        return lambda: setattr(core, "utctimestamp", orig)
+        """Patch get_timestamp, return a restore callable."""
+        orig = core.get_timestamp
+        core.get_timestamp = lambda: value
+        return lambda: setattr(core, "get_timestamp", orig)
 
-    def _chdir(self, new_cwd: str):
+    def _chdir(self, new_cwd: str | Path):
         """Change cwd, return a restore callable."""
         old = os.getcwd()
         os.chdir(new_cwd)
@@ -31,8 +31,8 @@ class TestCreateArchive:
             restore_ts = self._patch_timestamp("20250101010101")
             restore_cwd = self._chdir(workdir)
             try:
-                core.create_archive(srcdir)  # uses patched timestamp
-                expected = Path(workdir) / f"20250101010101_{Path(srcdir).stem}.zip"
+                core.create_archive(src)  # uses patched timestamp
+                expected = Path(workdir) / f"20250101010101-{Path(srcdir).stem}.zip"
                 assert expected.exists(), "archive file was not created"
 
                 extract_dir = Path(workdir) / "ex"
@@ -51,7 +51,7 @@ class TestCreateArchive:
             restore_ts = self._patch_timestamp("20250101010101")
             restore_cwd = self._chdir(workdir)
             try:
-                core.create_archive(srcdir, archive_name="myarchive")
+                core.create_archive(src, archive_name="myarchive")
                 expected = Path(workdir) / "myarchive.zip"
                 assert expected.exists()
                 extract_dir = Path(workdir) / "ex2"
@@ -70,7 +70,7 @@ class TestCreateArchive:
             restore_ts = self._patch_timestamp("20250101010101")
             restore_cwd = self._chdir(workdir)
             try:
-                core.create_archive(srcdir, archive_name="pat", patterns=["*.md"])
+                core.create_archive(src, archive_name="pat", patterns=["*.md"])
                 expected = Path(workdir) / "pat.zip"
                 assert expected.exists()
                 extract_dir = Path(workdir) / "ex3"
@@ -92,7 +92,7 @@ class TestCreateArchive:
             restore_cwd = self._chdir(workdir)
             try:
                 # gztar should preserve symlink entries
-                core.create_archive(srcdir, archive_name="sym", archive_format="gztar")
+                core.create_archive(src, archive_name="sym", archive_format="gztar")
                 expected = Path(workdir) / "sym.tar.gz"
                 assert expected.exists()
                 extract_dir = Path(workdir) / "ex4"
@@ -110,17 +110,6 @@ class TestCreateArchive:
                 restore_cwd()
                 restore_ts()
 
-    def test_nonexistent_directory_raises(self):
-        with TemporaryDirectory() as workdir:
-            restore_ts = self._patch_timestamp("20250101010101")
-            restore_cwd = self._chdir(workdir)
-            try:
-                with pytest.raises(ValueError):
-                    core.create_archive("/path/does/not/exist")
-            finally:
-                restore_cwd()
-                restore_ts()
-
     def test_invalid_archive_format_raises(self):
         with TemporaryDirectory() as srcdir, TemporaryDirectory() as workdir:
             src = Path(srcdir)
@@ -130,7 +119,7 @@ class TestCreateArchive:
             restore_cwd = self._chdir(workdir)
             try:
                 with pytest.raises(ValueError):
-                    core.create_archive(srcdir, archive_format="INVALID_FORMAT")
+                    core.create_archive(src, archive_format="INVALID_FORMAT")
             finally:
                 restore_cwd()
                 restore_ts()
