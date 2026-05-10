@@ -153,23 +153,15 @@ def delete_branches(
         protected = PROTECTED_BRANCHES.union(current).union(protect or {})
 
         num_deleted_branches = core.delete_local_branches(protected)
-        num_deleted_refs = None
+        branch_label = "branch" if num_deleted_branches == 1 else "branches"
+        message = f"done: deleted {num_deleted_branches} {branch_label}"
+
         if refs:
             num_deleted_refs = core.delete_remote_branch_refs(protected)
-
-        parts = []
-        if num_deleted_branches:
-            branch_label = "branch" if num_deleted_branches == 1 else "branches"
-            parts.append(f"deleted {num_deleted_branches} {branch_label}")
-        if num_deleted_refs:
             ref_label = "ref" if num_deleted_refs == 1 else "refs"
-            parts.append(f"deleted {num_deleted_refs} {ref_label}")
+            message += f", deleted {num_deleted_refs} {ref_label}"
 
-        message = ["done"]
-        if parts:
-            message.append(", ".join(parts))
-
-        typer.secho(": ".join(message), fg=typer.colors.GREEN, bold=True)
+        typer.secho(message, fg=typer.colors.GREEN, bold=True)
 
     except Exception as exc:
         message = "cannot delete branches"

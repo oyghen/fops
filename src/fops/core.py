@@ -154,13 +154,13 @@ def delete_cache_files(directory_path: Path, cache_file_patterns: set[str]) -> i
     return count
 
 
-def delete_local_branches(protected_branches: set[str]) -> int | None:
+def delete_local_branches(protected_branches: set[str]) -> int:
     """Delete local git branches except protected ones."""
     local = get_local_branch_names()
     to_delete = [b for b in local if b not in protected_branches]
     if not to_delete:
         logger.info("no local branches to delete")
-        return
+        return 0
 
     logger.debug("local branches to delete: %d", len(to_delete))
     for branch in to_delete:
@@ -174,13 +174,13 @@ def delete_local_branches(protected_branches: set[str]) -> int | None:
     return len(to_delete)
 
 
-def delete_remote_branch_refs(protected_branches: set[str]) -> int | None:
+def delete_remote_branch_refs(protected_branches: set[str]) -> int:
     """Delete remote-tracking git branch refs except protected ones."""
     remote = get_remote_branch_names()
     to_delete = [r for r in remote if r.split("/", 1)[-1] not in protected_branches]
     if not to_delete:
         logger.info("no remote-tracking refs to delete")
-        return
+        return 0
 
     logger.debug("remote refs to delete: %d", len(to_delete))
     for ref in to_delete:
