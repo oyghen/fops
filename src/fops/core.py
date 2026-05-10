@@ -120,13 +120,14 @@ def delete_cache_dirs(directory_path: Path, cache_dir_patterns: set[str]) -> int
     """Delete cache directories in the specified directory."""
     count = 0
     cwd = Path.cwd()
+    commonpath = Path(os.path.commonpath([directory_path, cwd]))
     for dir_pattern in cache_dir_patterns:
         try:
             for path in directory_path.rglob(dir_pattern):
                 if "venv" in str(path):
                     continue
                 shutil.rmtree(path.absolute(), ignore_errors=False)
-                logger.info("deleted: %s", path.relative_to(cwd))
+                logger.debug("deleted: %s", path.relative_to(commonpath))
                 count += 1
         except Exception as exc:
             logger.warning("skipping dir pattern: %s -> %s", dir_pattern, repr(exc))
@@ -138,13 +139,14 @@ def delete_cache_files(directory_path: Path, cache_file_patterns: set[str]) -> i
     """Delete cache files in the specified directory."""
     count = 0
     cwd = Path.cwd()
+    commonpath = Path(os.path.commonpath([directory_path, cwd]))
     for file_pattern in cache_file_patterns:
         try:
             for path in directory_path.rglob(file_pattern):
                 if "venv" in str(path):
                     continue
                 path.unlink()
-                logger.info("deleted: %s", path.relative_to(cwd))
+                logger.debug("deleted: %s", path.relative_to(commonpath))
                 count += 1
         except Exception as exc:
             logger.warning("skipping file pattern: %s -> %s", file_pattern, repr(exc))

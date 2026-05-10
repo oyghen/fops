@@ -208,13 +208,12 @@ def delete_cache(
     cache_file_patterns = CACHE_FILE_PATTERNS.union(fp or {})
 
     try:
+        logger.info("deleting cache in directory: %s", directory_path)
         num_deleted = core.delete_cache_dirs(directory_path, cache_dir_patterns)
         num_deleted += core.delete_cache_files(directory_path, cache_file_patterns)
 
-        message = "done"
-        if num_deleted:
-            item_label = "item" if num_deleted == 1 else "items"
-            message += f": deleted {num_deleted} {item_label}"
+        item_label = "item" if num_deleted == 1 else "items"
+        message = f"done: deleted {num_deleted} {item_label}"
 
         typer.secho(message, fg=typer.colors.GREEN, bold=True)
 
