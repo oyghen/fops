@@ -68,6 +68,23 @@ def main(
     setup_logging(level)
 
 
+class ColorFormatter(logging.Formatter):
+    COLORS = {
+        logging.DEBUG: "\x1b[36m",  # cyan
+        logging.INFO: "\x1b[32m",  # green
+        logging.WARNING: "\x1b[33m",  # yellow
+        logging.ERROR: "\x1b[31m",  # red
+        logging.CRITICAL: "\x1b[1;31m",  # bold red
+    }
+
+    RESET = "\x1b[0m"
+
+    def format(self, record: logging.LogRecord) -> str:
+        color = self.COLORS.get(record.levelno, "")
+        record.levelname = f"{color}{record.levelname:<8s}{self.RESET}"
+        return super().format(record)
+
+
 def setup_logging(level: int) -> None:
     """Set up application logging configuration."""
     root = logging.getLogger()
@@ -76,7 +93,7 @@ def setup_logging(level: int) -> None:
 
     handler = logging.StreamHandler(sys.stderr)
     fmt = "[ %(levelname)-8s ] %(message)s"
-    handler.setFormatter(logging.Formatter(fmt))
+    handler.setFormatter(ColorFormatter(fmt))
 
     root.addHandler(handler)
     root.setLevel(level)
