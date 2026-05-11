@@ -8,7 +8,6 @@ __all__ = (
 )
 
 import contextlib
-import inspect
 import logging
 import os
 import shlex
@@ -223,154 +222,97 @@ def run_command(command: str | Sequence[str]) -> str:
 
 def rename_extensions(
     directory_path: Path,
-    old_ext: str | None,
+    cur_ext: str,
     new_ext: str,
-    create_copy: bool = False,
+    make_copy: bool = False,
     recursive: bool = False,
     overwrite: bool = False,
     dry_run: bool = False,
-) -> None:
-    """Rename (or copy) files in a directory by changing their extensions."""
-    logger.info("processing directory: %s", directory_path)
-    logger.debug(
-        "running '%s' with %s",
-        get_caller_name(),
-        {
-            "directory_path": directory_path,
-            "old_ext": old_ext,
-            "new_ext": new_ext,
-            "create_copy": create_copy,
-            "recursive": recursive,
-            "overwrite": overwrite,
-            "dry_run": dry_run,
-        },
-    )
+) -> int:
+    """Rename file extensions in the target directory."""
+    logger.info("renaming file extensions in directory: %s", directory_path)
 
-    def _normalize(ext: str | None) -> str | None:
-        if ext is None:
-            return None
-        if ext == "":
-            return ""
+    def normalize(ext: str) -> str:
         return ext if ext.startswith(".") else f".{ext}"
 
-    src_ext = _normalize(old_ext)
-    dst_ext = _normalize(new_ext)
-    if dst_ext is None:
-        raise ValueError("new_ext must be provided")
+    src_ext = normalize(cur_ext)
+    dst_ext = normalize(new_ext)
 
-    # iterable of Path objects
-    file_paths = directory_path.rglob("*") if recursive else directory_path.iterdir()
+    lower_src_ext = src_ext.lower()
 
-    for file_path in file_paths:
-        rel_file_path = file_path.relative_to(directory_path)
-        logger.debug("processing: %s", rel_file_path)
-
-        if not file_path.is_file():
-            logger.debug("skipping: not a file: %s", rel_file_path)
+    count = 0
+    paths = directory_path.rglob("*") if recursive else directory_path.iterdir()
+    for cur_path in paths:
+        if not cur_path.is_file():
             continue
 
-        name = file_path.name
-        lower_name = name.lower()
-
-        # decide if file matches src_ext
-        if src_ext is None:
-            matches = True
-        else:
-            src_lower = src_ext.lower()
-            # treat multi-dot extensions (e.g. '.tar.gz') via endswith
-            if src_lower.count(".") > 1:
-                matches = lower_name.endswith(src_lower)
-            else:
-                matches = file_path.suffix.lower() == src_lower
+        # treat multi-dot extensions (e.g. '.tar.gz') via endswith
+        lower_name = cur_path.name.lower()
+        matches = (
+            lower_name.endswith(lower_src_ext)
+            if lower_src_ext.count(".") > 1
+            else cur_path.suffix.lower() == lower_src_ext
+        )
 
         if not matches:
-            logger.debug("skipping: not a match: %s", rel_file_path)
             continue
 
         # compute new path
-        if (
-            src_ext
-            and src_ext.lower().count(".") > 1
-            and lower_name.endswith(src_ext.lower())
-        ):
+        if lower_src_ext.count(".") > 1 and lower_name.endswith(lower_src_ext):
             # replace trailing multi-dot ext
-            new_name = name[: -len(src_ext)] + dst_ext
-            new_path = file_path.with_name(new_name)
+            new_name = cur_path.name[: -len(src_ext)] + dst_ext
+            new_path = cur_path.with_name(new_name)
         else:
             # pathlib.with_suffix accepts '' to remove suffix
-            new_path = file_path.with_suffix(dst_ext)
+            new_path = cur_path.with_suffix(dst_ext)
 
-        # no-op
-        if new_path == file_path:
-            logger.debug("skipping: new_path is current file_path")
+        if new_path == cur_path:
+            # skipping: new_path is current file_path"
             continue
 
+        rel_path = cur_path.relative_to(directory_path)
         rel_new_path = new_path.relative_to(directory_path)
 
         if new_path.exists() and not overwrite:
-            raise FileExistsError(f"file already exists: {rel_new_path}")
-
-        if dry_run:
-            op = "copy" if create_copy else "rename"
-            logger.info("[dry-run] %s %s -> %s", op, rel_file_path, rel_new_path)
+            logger.debug("skipping: file exists: %s", rel_new_path)
             continue
 
-        if create_copy:
-            safe_copy(file_path, new_path, directory_path, overwrite=overwrite)
-            logger.info("copied %s -> %s", rel_file_path, rel_new_path)
+        if dry_run:
+            op = "copy" if make_copy else "rename"
+            logger.debug("dry-run %s: %s -> %s", op, rel_path, rel_new_path)
+            count += 1
+            continue
+
+        if make_copy:
+            safe_copy(cur_path, new_path)
+            logger.debug("copied: %s -> %s", rel_path, rel_new_path)
+            count += 1
+            continue
+
+        if new_path.exists() and overwrite:
+            cur_path.replace(new_path)
         else:
-            # use replace when allowing overwrite (atomic where supported)
-            if overwrite and new_path.exists():
-                file_path.replace(new_path)
-            else:
-                file_path.rename(new_path)
-            logger.info("renamed %s -> %s", rel_file_path, rel_new_path)
+            cur_path.rename(new_path)
+        logger.debug("renamed: %s -> %s", rel_path, rel_new_path)
+        count += 1
+
+    return count
 
 
-def safe_copy(
-    old_file: Path, new_file: Path, dir_path: Path, *, overwrite: bool = False
-) -> None:
+def safe_copy(src_file: Path, dst_file: Path) -> None:
     """Safely copy a file with metadata and atomically replace the target if desired."""
-    src = Path(old_file)
-    dst = Path(new_file)
-    rel_src = src.relative_to(dir_path)
-    rel_dst = dst.relative_to(dir_path)
-
-    if not src.exists() or not src.is_file():
-        raise FileNotFoundError(f"source does not exist or is not a file: {rel_src}")
-
-    dst.parent.mkdir(parents=True, exist_ok=True)
-
-    if dst.exists() and not overwrite:
-        raise FileExistsError(f"target already exists: {rel_dst}")
-
     tmp_path: Path | None = None
     try:
-        # create a named temporary file in the destination directory for atomic replace
-        with tempfile.NamedTemporaryFile(delete=False, dir=dst.parent) as tmp:
-            tmp_path = Path(tmp.name)
-        copy2(src, tmp_path)  # copy2 preserves metadata (mtime, permissions, flags)
-        os.replace(str(tmp_path), str(dst))  # atomic rename (replace) to final dst
+        dst_file.parent.mkdir(parents=True, exist_ok=True)
+
+        with tempfile.NamedTemporaryFile(delete=False, dir=dst_file.parent) as temp:
+            tmp_path = Path(temp.name)
+
+        copy2(src_file, tmp_path)
+        os.replace(str(tmp_path), str(dst_file))
+
     except Exception:
-        # best-effort cleanup of temp file
         with contextlib.suppress(Exception):
             if tmp_path is not None and tmp_path.exists():
                 tmp_path.unlink()
         raise
-
-
-def get_caller_name(depth: int = 1) -> str:
-    """Return the name of the calling function; depth=1 is the immediate caller."""
-    if depth < 1:
-        raise ValueError(f"invalid {depth=!r}; expected >= 1")
-
-    frame = inspect.currentframe()
-    try:
-        caller = frame
-        for _ in range(depth):
-            caller = caller.f_back if caller is not None else None
-        if caller is None:
-            raise RuntimeError("expected to be executed within a function")
-        return caller.f_code.co_name
-    finally:
-        del frame
