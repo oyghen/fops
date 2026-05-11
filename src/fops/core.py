@@ -121,10 +121,10 @@ def delete_cache_dirs(directory_path: Path, cache_dir_patterns: set[str]) -> int
                 if "venv" in str(path):
                     continue
                 shutil.rmtree(path.absolute(), ignore_errors=False)
-                logger.debug("deleted: %s", path.relative_to(directory_path))
+                logger.info("deleted: %s", path.relative_to(directory_path))
                 count += 1
         except Exception as exc:
-            logger.warning("skipping dir pattern: %s -> %s", dir_pattern, repr(exc))
+            logger.warning("skipping: dir pattern: %s -> %s", dir_pattern, repr(exc))
             continue
     return count
 
@@ -138,10 +138,10 @@ def delete_cache_files(directory_path: Path, cache_file_patterns: set[str]) -> i
                 if "venv" in str(path):
                     continue
                 path.unlink()
-                logger.debug("deleted: %s", path.relative_to(directory_path))
+                logger.info("deleted: %s", path.relative_to(directory_path))
                 count += 1
         except Exception as exc:
-            logger.warning("skipping file pattern: %s -> %s", file_pattern, repr(exc))
+            logger.warning("skipping: file pattern: %s -> %s", file_pattern, repr(exc))
             continue
     return count
 
