@@ -122,7 +122,7 @@ def create_archive(
         str | None,
         typer.Option(
             help="Archive name.",
-            show_default="timestamp_dirname",
+            show_default="utc_timestamp_dirname",
         ),
     ] = None,
     fmt: str = typer.Option("zip", help="Archive format."),
