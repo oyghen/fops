@@ -1,3 +1,4 @@
+import functools
 import logging
 import sys
 from enum import IntEnum
@@ -84,6 +85,10 @@ def validate_directory_path(directory_path: str) -> Path:
     return path
 
 
+echo_success = functools.partial(typer.secho, fg=typer.colors.GREEN, bold=True)
+echo_error = functools.partial(typer.secho, fg=typer.colors.RED, err=True, bold=True)
+
+
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
@@ -151,11 +156,11 @@ def archive(
     """
     try:
         archive_path = core.create_archive(directory_path, pattern, name, fmt)
-        typer.secho(f"done: created {archive_path}", fg=typer.colors.GREEN, bold=True)
+        echo_success(f"done: created {archive_path}")
     except Exception as exc:
         message = "cannot create archive"
         logger.exception(message)
-        typer.secho(f"error: {message}", fg=typer.colors.RED, err=True, bold=True)
+        echo_error(f"error: {message}")
         raise typer.Exit(code=ExitCode.ERROR) from exc
 
 
@@ -188,12 +193,12 @@ def branches(
             ref_label = "ref" if num_deleted_refs == 1 else "refs"
             message += f", deleted {num_deleted_refs} {ref_label}"
 
-        typer.secho(message, fg=typer.colors.GREEN, bold=True)
+        echo_success(message)
 
     except Exception as exc:
         message = "cannot delete branches"
         logger.exception(message)
-        typer.secho(f"error: {message}", fg=typer.colors.RED, err=True, bold=True)
+        echo_error(f"error: {message}")
         raise typer.Exit(code=ExitCode.ERROR) from exc
 
 
@@ -234,12 +239,12 @@ def cache(
         item_label = "item" if num_deleted == 1 else "items"
         message = f"done: deleted {num_deleted} {item_label}"
 
-        typer.secho(message, fg=typer.colors.GREEN, bold=True)
+        echo_success(message)
 
     except Exception as exc:
         message = "cannot delete cache"
         logger.exception(message)
-        typer.secho(f"error: {message}", fg=typer.colors.RED, err=True, bold=True)
+        echo_error(f"error: {message}")
         raise typer.Exit(code=ExitCode.ERROR) from exc
 
 
@@ -294,9 +299,9 @@ def extensions(
             overwrite=overwrite,
             dry_run=dry_run,
         )
-        typer.secho("done", fg=typer.colors.GREEN, bold=True)
+        echo_success("done")
     except Exception as exc:
         message = "cannot rename"
         logger.exception(message)
-        typer.secho(f"error: {message}", fg=typer.colors.RED, err=True, bold=True)
+        echo_error(f"error: {message}")
         raise typer.Exit(code=ExitCode.ERROR) from exc
