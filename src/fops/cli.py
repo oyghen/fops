@@ -1,5 +1,6 @@
 import functools
 import logging
+import platform
 import sys
 from enum import IntEnum
 from pathlib import Path
@@ -120,6 +121,9 @@ def main(
         level = logging.INFO
 
     setup_logging(level)
+
+    logger.debug(f"running: Python {platform.python_version()}")
+    logger.debug(f"running: {pkg_name} {pkg_version}")
 
 
 @create.command()
