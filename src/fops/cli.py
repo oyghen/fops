@@ -140,7 +140,7 @@ def archive(
         list[str] | None, typer.Option(help="File pattern to include.")
     ] = None,
 ) -> None:
-    """Archive files in target directory.
+    """Archive files in the target directory.
 
     Example:
     $ fops create archive
@@ -269,7 +269,7 @@ def extensions(
         False, help="Show what would be changed without modifying any files."
     ),
 ) -> None:
-    """Rename (or copy) files in a directory by changing their extensions.
+    """Rename file extensions in the target directory.
 
     Example:
     $ fops rename extensions --create-copy --recursive . .txt .md --dry-run
