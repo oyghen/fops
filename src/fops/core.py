@@ -55,10 +55,7 @@ def create_archive(
 
     dir_count = 0
     file_count = 0
-    cwd = Path.cwd()
-    logger.info(
-        "processing %d path(s) in the target directory: %s", len(paths), target_dir
-    )
+    logger.info("archiving %d path(s) in directory: %s", len(paths), target_dir)
     with tempfile.TemporaryDirectory() as tmpdir:
         temp_dir = Path(tmpdir)
         for src in paths:
@@ -92,7 +89,7 @@ def create_archive(
     logger.info("number of archived directories: %s", dir_count)
     logger.info("number of archived files: %s", file_count)
 
-    return Path(arch).relative_to(cwd)
+    return Path(arch).relative_to(Path.cwd())
 
 
 def get_timestamp() -> str:
