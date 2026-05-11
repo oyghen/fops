@@ -290,7 +290,7 @@ def extensions(
     $ fops rename extensions --copy --recursive .txt .md --dry-run
     """
     try:
-        rename_count = core.rename_extensions(
+        num_processed = core.rename_extensions(
             directory_path,
             cur_ext=cur,
             new_ext=new,
@@ -299,9 +299,19 @@ def extensions(
             overwrite=overwrite,
             dry_run=dry_run,
         )
-        verb = "would rename" if dry_run else "renamed"
-        item_label = "file" if rename_count == 1 else "files"
-        echo_success(f"done: {verb} {rename_count} {item_label}")
+
+        if copy and dry_run:
+            verb = "would copy"
+        elif copy and not dry_run:
+            verb = "copied"
+        elif not copy and dry_run:
+            verb = "would rename"
+        else:
+            # not copy and not dry_run
+            verb = "renamed"
+
+        file_label = "file" if num_processed == 1 else "files"
+        echo_success(f"done: {verb} {num_processed} {file_label}")
 
     except Exception as exc:
         message = "cannot rename"
