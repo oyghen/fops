@@ -13,6 +13,14 @@ logger = logging.getLogger(__name__)
 
 app = typer.Typer(add_completion=False)
 
+create = typer.Typer(help="Create commands.")
+delete = typer.Typer(help="Delete commands.")
+rename = typer.Typer(help="Rename commands.")
+
+app.add_typer(create, name="create")
+app.add_typer(delete, name="delete")
+app.add_typer(rename, name="rename")
+
 
 PROTECTED_BRANCHES: Final[set[str]] = {"main", "master", "develop"}
 
@@ -80,8 +88,10 @@ def validate_directory_path(directory_path: str) -> Path:
 def main(
     ctx: typer.Context,
     version: bool = typer.Option(False, "--version", help="Show version and exit."),
-    verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging."),
-    quiet: bool = typer.Option(False, "--quiet", help="Suppress info logging."),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Enable debug logging."
+    ),
+    quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress info logging."),
 ) -> None:
     if verbose and quiet:
         raise typer.BadParameter("cannot use --verbose and --quiet together")
@@ -107,8 +117,8 @@ def main(
     setup_logging(level)
 
 
-@app.command()
-def create_archive(
+@create.command()
+def archive(
     directory_path: Annotated[
         Path,
         typer.Argument(
@@ -133,11 +143,11 @@ def create_archive(
     """Archive files in target directory.
 
     Example:
-    $ fops create-archive
-    $ fops create-archive some_dir
-    $ fops create-archive --name archive
-    $ fops create-archive --fmt gztar
-    $ fops create-archive --pattern '*.txt' --pattern '*.md'
+    $ fops create archive
+    $ fops create archive some_dir
+    $ fops create archive --name archive
+    $ fops create archive --fmt gztar
+    $ fops create archive --pattern '*.txt' --pattern '*.md'
     """
     try:
         archive_path = core.create_archive(directory_path, pattern, name, fmt)
@@ -149,8 +159,8 @@ def create_archive(
         raise typer.Exit(code=ExitCode.ERROR) from exc
 
 
-@app.command()
-def delete_branches(
+@delete.command()
+def branches(
     refs: bool = typer.Option(
         False, "--refs", help="Delete remote-tracking git branch refs as well."
     ),
@@ -161,9 +171,9 @@ def delete_branches(
     """Delete local git branches and remote-tracking refs except protected ones.
 
     Example:
-    $ fops delete-branches
-    $ fops delete-branches --refs
-    $ fops delete-branches --protect some_branch --protect another_branch
+    $ fops delete branches
+    $ fops delete branches --refs
+    $ fops delete branches --protect some_branch --protect another_branch
     """
     try:
         current = core.get_current_branch()
@@ -187,8 +197,8 @@ def delete_branches(
         raise typer.Exit(code=ExitCode.ERROR) from exc
 
 
-@app.command()
-def delete_cache(
+@delete.command()
+def cache(
     directory_path: Annotated[
         Path,
         typer.Argument(
@@ -208,10 +218,10 @@ def delete_cache(
     """Delete cache directories and files in the specified directory.
 
     Example:
-    $ fops delete-cache
-    $ fops delete-cache some_dir
-    $ fops delete-cache --dp '*.egg-info'
-    $ fops delete-cache --dp '*.egg-info' --fp '*.cache'
+    $ fops delete cache
+    $ fops delete cache some_dir
+    $ fops delete cache --dp '*.egg-info'
+    $ fops delete cache --dp '*.egg-info' --fp '*.cache'
     """
     cache_dir_patterns = CACHE_DIR_PATTERNS.union(dp or {})
     cache_file_patterns = CACHE_FILE_PATTERNS.union(fp or {})
@@ -233,8 +243,8 @@ def delete_cache(
         raise typer.Exit(code=ExitCode.ERROR) from exc
 
 
-@app.command()
-def rename_extensions(
+@rename.command()
+def extensions(
     directory_path: Annotated[
         Path,
         typer.Argument(
@@ -262,7 +272,7 @@ def rename_extensions(
     """Rename (or copy) files in a directory by changing their extensions.
 
     Example:
-    $ fops rename-extensions --create-copy --recursive . .txt .md --dry-run
+    $ fops rename extensions --create-copy --recursive . .txt .md --dry-run
     """
     try:
         core.rename_extensions(
