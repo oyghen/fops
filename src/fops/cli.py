@@ -37,37 +37,6 @@ class ExitCode(IntEnum):
     ERROR = 1
 
 
-@app.callback(invoke_without_command=True)
-def main(
-    ctx: typer.Context,
-    version: bool = typer.Option(False, "--version", help="Show version and exit."),
-    verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging."),
-    quiet: bool = typer.Option(False, "--quiet", help="Suppress info logging."),
-) -> None:
-    if verbose and quiet:
-        raise typer.BadParameter("cannot use --verbose and --quiet together")
-
-    pkg_name = fops.__name__
-    pkg_version = typer.style(fops.__version__, fg=typer.colors.CYAN)
-
-    if version:
-        typer.echo(f"{pkg_name} {pkg_version}")
-        raise typer.Exit(code=ExitCode.SUCCESS)
-
-    if ctx.invoked_subcommand is None:
-        typer.echo(f"{pkg_name} {pkg_version} ready. See --help for usage.")
-        raise typer.Exit(code=ExitCode.SUCCESS)
-
-    if verbose:
-        level = logging.DEBUG
-    elif quiet:
-        level = logging.WARNING
-    else:
-        level = logging.INFO
-
-    setup_logging(level)
-
-
 class ColorFormatter(logging.Formatter):
     COLORS = {
         logging.DEBUG: "\x1b[36m",  # cyan
@@ -105,6 +74,37 @@ def validate_directory_path(directory_path: str) -> Path:
     if not path.is_dir():
         raise typer.BadParameter("must be an existing directory")
     return path
+
+
+@app.callback(invoke_without_command=True)
+def main(
+    ctx: typer.Context,
+    version: bool = typer.Option(False, "--version", help="Show version and exit."),
+    verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging."),
+    quiet: bool = typer.Option(False, "--quiet", help="Suppress info logging."),
+) -> None:
+    if verbose and quiet:
+        raise typer.BadParameter("cannot use --verbose and --quiet together")
+
+    pkg_name = fops.__name__
+    pkg_version = typer.style(fops.__version__, fg=typer.colors.CYAN)
+
+    if version:
+        typer.echo(f"{pkg_name} {pkg_version}")
+        raise typer.Exit(code=ExitCode.SUCCESS)
+
+    if ctx.invoked_subcommand is None:
+        typer.echo(f"{pkg_name} {pkg_version} ready. See --help for usage.")
+        raise typer.Exit(code=ExitCode.SUCCESS)
+
+    if verbose:
+        level = logging.DEBUG
+    elif quiet:
+        level = logging.WARNING
+    else:
+        level = logging.INFO
+
+    setup_logging(level)
 
 
 @app.command()
