@@ -232,6 +232,7 @@ def rename_extensions(
     dry_run: bool = False,
 ) -> None:
     """Rename (or copy) files in a directory by changing their extensions."""
+    logger.info("processing directory: %s", directory_path)
     logger.debug(
         "running '%s' with %s",
         get_caller_name(),
@@ -246,10 +247,6 @@ def rename_extensions(
         },
     )
 
-    dir_path = Path(directory_path).resolve()
-    if not dir_path.exists() or not dir_path.is_dir():
-        raise ValueError(f"{directory_path!r} does not exist or is not a directory")
-
     def _normalize(ext: str | None) -> str | None:
         if ext is None:
             return None
@@ -263,13 +260,14 @@ def rename_extensions(
         raise ValueError("new_ext must be provided")
 
     # iterable of Path objects
-    file_paths = dir_path.rglob("*") if recursive else dir_path.iterdir()
+    file_paths = directory_path.rglob("*") if recursive else directory_path.iterdir()
 
     for file_path in file_paths:
-        logger.debug("processing: %s", file_path)
+        rel_file_path = file_path.relative_to(directory_path)
+        logger.debug("processing: %s", rel_file_path)
 
         if not file_path.is_file():
-            logger.debug("skipping - not a file: %s", file_path)
+            logger.debug("skipping: not a file: %s", rel_file_path)
             continue
 
         name = file_path.name
@@ -287,7 +285,7 @@ def rename_extensions(
                 matches = file_path.suffix.lower() == src_lower
 
         if not matches:
-            logger.debug("skipping - not a match: %s", file_path)
+            logger.debug("skipping: not a match: %s", rel_file_path)
             continue
 
         # compute new path
@@ -305,41 +303,47 @@ def rename_extensions(
 
         # no-op
         if new_path == file_path:
-            logger.debug("skipping - new_path is current file_path")
+            logger.debug("skipping: new_path is current file_path")
             continue
 
+        rel_new_path = new_path.relative_to(directory_path)
+
         if new_path.exists() and not overwrite:
-            raise FileExistsError(f"file already exists: {new_path}")
+            raise FileExistsError(f"file already exists: {rel_new_path}")
 
         if dry_run:
             op = "copy" if create_copy else "rename"
-            logger.info("[dry-run] %s %s -> %s", op, file_path, new_path)
+            logger.info("[dry-run] %s %s -> %s", op, rel_file_path, rel_new_path)
             continue
 
         if create_copy:
-            safe_copy(file_path, new_path, overwrite=overwrite)
-            logger.info("copied %s -> %s", file_path, new_path)
+            safe_copy(file_path, new_path, directory_path, overwrite=overwrite)
+            logger.info("copied %s -> %s", rel_file_path, rel_new_path)
         else:
             # use replace when allowing overwrite (atomic where supported)
             if overwrite and new_path.exists():
                 file_path.replace(new_path)
             else:
                 file_path.rename(new_path)
-            logger.info("renamed %s -> %s", file_path, new_path)
+            logger.info("renamed %s -> %s", rel_file_path, rel_new_path)
 
 
-def safe_copy(old_file: Path, new_file: Path, *, overwrite: bool = False) -> None:
+def safe_copy(
+    old_file: Path, new_file: Path, dir_path: Path, *, overwrite: bool = False
+) -> None:
     """Safely copy a file with metadata and atomically replace the target if desired."""
     src = Path(old_file)
     dst = Path(new_file)
+    rel_src = src.relative_to(dir_path)
+    rel_dst = dst.relative_to(dir_path)
 
     if not src.exists() or not src.is_file():
-        raise FileNotFoundError(f"source does not exist or is not a file: {src}")
+        raise FileNotFoundError(f"source does not exist or is not a file: {rel_src}")
 
     dst.parent.mkdir(parents=True, exist_ok=True)
 
     if dst.exists() and not overwrite:
-        raise FileExistsError(f"target already exists: {dst}")
+        raise FileExistsError(f"target already exists: {rel_dst}")
 
     tmp_path: Path | None = None
     try:
