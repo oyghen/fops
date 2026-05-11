@@ -274,8 +274,9 @@ def rename_extensions(
             overwrite=overwrite,
             dry_run=dry_run,
         )
-        typer.secho("Done.", fg=typer.colors.GREEN)
+        typer.secho("done", fg=typer.colors.GREEN, bold=True)
     except Exception as exc:
-        logger.exception("failed to rename")
-        typer.secho("Failed to rename.", fg=typer.colors.RED, err=True)
+        message = "cannot rename"
+        logger.exception(message)
+        typer.secho(f"error: {message}", fg=typer.colors.RED, err=True, bold=True)
         raise typer.Exit(code=ExitCode.ERROR) from exc
