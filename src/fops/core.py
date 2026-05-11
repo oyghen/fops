@@ -88,7 +88,7 @@ def create_archive(
                 logger.info("archived: %s", rel_src)
 
             else:
-                logger.debug("skipping: %s", rel_src)
+                logger.warning("skipping: %s", rel_src)
                 continue
 
         arch = make_archive(str(Path(arch_name)), arch_format, root_dir=str(temp_dir))
@@ -280,15 +280,15 @@ def rename_extensions(
             # pathlib.with_suffix accepts '' to remove suffix
             new_path = cur_path.with_suffix(dst_ext)
 
-        if new_path == cur_path:
-            logger.debug("skipping: file exists: new file is current file")
-            continue
-
         rel_new_path = new_path.relative_to(directory_path)
         logger.debug("name of new file: %s", rel_new_path)
 
+        if new_path == cur_path:
+            logger.warning("skipping: new name equals current name: %s", rel_new_path)
+            continue
+
         if new_path.exists() and not overwrite:
-            logger.info("skipping: file exists: %s", rel_new_path)
+            logger.warning("skipping: file exists: %s", rel_new_path)
             continue
 
         if dry_run:
