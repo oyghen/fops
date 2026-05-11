@@ -243,7 +243,11 @@ def rename_extensions(
     count = 0
     paths = directory_path.rglob("*") if recursive else directory_path.iterdir()
     for cur_path in paths:
+        rel_path = cur_path.relative_to(directory_path)
+        logger.debug("processing: %s", rel_path)
+
         if not cur_path.is_file():
+            logger.debug("skipping: not a file: %s", rel_path)
             continue
 
         # treat multi-dot extensions (e.g. '.tar.gz') via endswith
@@ -255,6 +259,7 @@ def rename_extensions(
         )
 
         if not matches:
+            logger.debug("skipping: no match: %s", rel_path)
             continue
 
         # compute new path
@@ -267,25 +272,25 @@ def rename_extensions(
             new_path = cur_path.with_suffix(dst_ext)
 
         if new_path == cur_path:
-            # skipping: new_path is current file_path"
+            logger.debug("skipping: file exists: new file is current file")
             continue
 
-        rel_path = cur_path.relative_to(directory_path)
         rel_new_path = new_path.relative_to(directory_path)
+        logger.debug("name of new file: %s", rel_new_path)
 
         if new_path.exists() and not overwrite:
-            logger.debug("skipping: file exists: %s", rel_new_path)
+            logger.info("skipping: file exists: %s", rel_new_path)
             continue
 
         if dry_run:
             op = "copy" if make_copy else "rename"
-            logger.debug("dry-run %s: %s -> %s", op, rel_path, rel_new_path)
+            logger.info("dry-run %s: %s -> %s", op, rel_path, rel_new_path)
             count += 1
             continue
 
         if make_copy:
             safe_copy(cur_path, new_path)
-            logger.debug("copied: %s -> %s", rel_path, rel_new_path)
+            logger.info("copied: %s -> %s", rel_path, rel_new_path)
             count += 1
             continue
 
@@ -293,7 +298,7 @@ def rename_extensions(
             cur_path.replace(new_path)
         else:
             cur_path.rename(new_path)
-        logger.debug("renamed: %s -> %s", rel_path, rel_new_path)
+        logger.info("renamed: %s -> %s", rel_path, rel_new_path)
         count += 1
 
     return count
