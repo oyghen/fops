@@ -37,12 +37,17 @@ def create_archive(
     """Return path of the created archive relative to the current working directory."""
     target_dir = directory_path
     ptrns = ["**/*"] if patterns is None else tuple(patterns)
+    logger.debug("patterns to use: %r", ptrns)
+
     arch_name = (
         f"{get_timestamp()}-{target_dir.stem}"
         if archive_name is None
         else validate_archive_name(archive_name)
     )
+    logger.debug("archive name: %r", arch_name)
+
     arch_format = validate_archive_format(archive_format)
+    logger.debug("archive format: %r", arch_format)
 
     # collect matches deterministically and deduplicate
     matched_paths: set[Path] = set()
@@ -59,12 +64,12 @@ def create_archive(
         temp_dir = Path(tmpdir)
         for src in paths:
             rel_src = src.relative_to(target_dir)
-            logger.debug("processing: %s", rel_src)
             dst = temp_dir / rel_src
 
             if src.is_dir():
                 dst.mkdir(parents=True, exist_ok=True)
                 dir_count += 1
+                logger.info("archived: %s", rel_src)
                 continue
 
             dst.parent.mkdir(parents=True, exist_ok=True)
@@ -75,15 +80,19 @@ def create_archive(
                     dst.unlink()
                 os.symlink(target_link, dst)
                 file_count += 1
+                logger.info("archived: %s", rel_src)
 
             elif src.is_file():
                 copy2(src, dst)
                 file_count += 1
+                logger.info("archived: %s", rel_src)
 
             else:
+                logger.debug("skipping: %s", rel_src)
                 continue
 
         arch = make_archive(str(Path(arch_name)), arch_format, root_dir=str(temp_dir))
+        logger.debug("created archive")
 
     logger.info("number of archived directories: %s", dir_count)
     logger.info("number of archived files: %s", file_count)
