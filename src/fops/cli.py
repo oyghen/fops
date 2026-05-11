@@ -245,6 +245,14 @@ def cache(
 
 @rename.command()
 def extensions(
+    cur: Annotated[
+        str,
+        typer.Argument(help="Current file extension to match (e.g. 'txt' or '.txt')."),
+    ],
+    new: Annotated[
+        str,
+        typer.Argument(help="New file extension to change to (e.g. 'md' or '.md')."),
+    ],
     directory_path: Annotated[
         Path,
         typer.Argument(
@@ -254,32 +262,34 @@ def extensions(
             callback=validate_directory_path,
         ),
     ],
-    old_ext: Annotated[
-        str, typer.Argument(help="File extension to match (e.g. 'txt' or '.txt').")
-    ],
-    new_ext: Annotated[
-        str, typer.Argument(help="New file extension to apply (e.g. 'md' or '.md').")
-    ],
-    create_copy: bool = typer.Option(help="Copy files instead of renaming them."),
-    recursive: bool = typer.Option(help="Process files recursively in subdirectories."),
+    copy: bool = typer.Option(
+        False, "--copy", help="Copy files instead of modify them."
+    ),
+    recursive: bool = typer.Option(
+        False, "--recursive", help="Process files recursively in subdirectories."
+    ),
     overwrite: bool = typer.Option(
-        False, help="Overwrite existing target files if they already exist."
+        False,
+        "--overwrite",
+        help="Overwrite existing target files if they already exist.",
     ),
     dry_run: bool = typer.Option(
-        False, help="Show what would be changed without modifying any files."
+        False,
+        "--dry-run",
+        help="Show what would be changed without modifying any files.",
     ),
 ) -> None:
     """Rename file extensions in the target directory.
 
     Example:
-    $ fops rename extensions --create-copy --recursive . .txt .md --dry-run
+    $ fops rename extensions --copy --recursive .txt .md --dry-run
     """
     try:
         core.rename_extensions(
             directory_path,
-            old_ext,
-            new_ext,
-            create_copy=create_copy,
+            old_ext=cur,
+            new_ext=new,
+            create_copy=copy,
             recursive=recursive,
             overwrite=overwrite,
             dry_run=dry_run,

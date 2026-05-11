@@ -225,7 +225,6 @@ def rename_extensions(
     directory_path: Path,
     old_ext: str | None,
     new_ext: str,
-    *,
     create_copy: bool = False,
     recursive: bool = False,
     overwrite: bool = False,
