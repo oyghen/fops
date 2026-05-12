@@ -4,6 +4,8 @@ __all__ = (
     "delete_cache_files",
     "delete_local_branches",
     "delete_remote_branch_refs",
+    "is_git_repo",
+    "get_current_branch",
     "rename_extensions",
 )
 
@@ -119,6 +121,15 @@ def validate_archive_format(archive_format: str) -> str:
     if fmt_choice not in fmt_choices:
         raise InvalidChoiceError(fmt_choice, fmt_choices)
     return fmt_choice
+
+
+def is_git_repo(path: Path) -> bool:
+    """Return True if path is inside a Git repository."""
+    try:
+        result = run_command(f"git -C {path} rev-parse --is-inside-work-tree")
+        return result == "true"
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
 
 
 def delete_cache_dirs(directory_path: Path, cache_dir_patterns: set[str]) -> int:

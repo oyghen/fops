@@ -184,6 +184,12 @@ def branches(
     $ fops delete branches --refs
     $ fops delete branches --protect some_branch --protect another_branch
     """
+    cwd = Path.cwd()
+    if not core.is_git_repo(cwd):
+        logger.critical("current directory is not a git repository: %s", cwd)
+        echo_error("fatal: no git repository")
+        raise typer.Exit(code=ExitCode.ERROR)
+
     try:
         current = core.get_current_branch()
         protected = PROTECTED_BRANCHES.union(current).union(protect or {})
