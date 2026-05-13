@@ -208,7 +208,11 @@ def delete_remote_branch_refs(protected_branches: set[str]) -> int:
 
 def get_current_branch() -> str:
     """Return the current branch name."""
-    return run("git rev-parse --abbrev-ref HEAD")
+    try:
+        return run("git rev-parse --abbrev-ref HEAD")
+    except subprocess.CalledProcessError:
+        logger.error("cannot determine current branch: repository has no commits yet")
+        raise
 
 
 def get_local_branch_names() -> list[str]:
