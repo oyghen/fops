@@ -185,9 +185,9 @@ def branches(
     $ fops delete branches --protect some_branch --protect another_branch
     """
     cwd = Path.cwd()
-    if not core.is_git_repo(cwd):
-        logger.critical("directory is not a git repository: %s", cwd)
-        echo_error("abort: current directory is not a git repository")
+    if core.is_git_repo(cwd):
+        logger.error("current directory is not a git repository: %s", cwd)
+        echo_error("error: current directory is not a git repository")
         raise typer.Exit(code=ExitCode.ERROR)
 
     try:

@@ -125,11 +125,10 @@ def validate_archive_format(archive_format: str) -> str:
 
 def is_git_repo(path: Path) -> bool:
     """Return True if path is inside a Git repository."""
-    cmd = f"git -C {path.as_posix()} rev-parse --is-inside-work-tree"
     try:
-        return run(cmd) == "true"
-    except Exception:
-        logger.error("unable to determine git repository status with command: %s", cmd)
+        command = f"git -C {path.as_posix()} rev-parse --is-inside-work-tree"
+        return run(command) == "true"
+    except subprocess.CalledProcessError:
         return False
 
 
