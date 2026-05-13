@@ -127,7 +127,7 @@ def is_git_repo(path: Path) -> bool:
     """Return True if path is inside a Git repository."""
     cmd = f"git -C {path.as_posix()} rev-parse --is-inside-work-tree"
     try:
-        return run_command(cmd) == "true"
+        return run(cmd) == "true"
     except Exception:
         logger.error("unable to determine git repository status with command: %s", cmd)
         return False
@@ -178,7 +178,7 @@ def delete_local_branches(protected_branches: set[str]) -> int:
     logger.debug("local branches to delete: %d", len(to_delete))
     for branch in to_delete:
         try:
-            run_command(f"git branch -D {branch}")
+            run(f"git branch -D {branch}")
             logger.info("deleted: %s", branch)
         except subprocess.CalledProcessError as exc:
             logger.exception("error deleting local branch: %s", branch)
@@ -198,7 +198,7 @@ def delete_remote_branch_refs(protected_branches: set[str]) -> int:
     logger.debug("remote refs to delete: %d", len(to_delete))
     for ref in to_delete:
         try:
-            run_command(f"git branch -r -d {ref}")
+            run(f"git branch -r -d {ref}")
             logger.info("deleted: %s", ref)
         except subprocess.CalledProcessError as exc:
             logger.exception("error deleting remote ref: %s", ref)
@@ -209,12 +209,12 @@ def delete_remote_branch_refs(protected_branches: set[str]) -> int:
 
 def get_current_branch() -> str:
     """Return the current branch name."""
-    return run_command("git rev-parse --abbrev-ref HEAD")
+    return run("git rev-parse --abbrev-ref HEAD")
 
 
 def get_local_branch_names() -> list[str]:
     """Return list of local branch names."""
-    out = run_command("git branch")
+    out = run("git branch")
     branches: list[str] = []
     for line in out.splitlines():
         branches.append(line.lstrip("*").strip())
@@ -223,7 +223,7 @@ def get_local_branch_names() -> list[str]:
 
 def get_remote_branch_names() -> list[str]:
     """Return list of remote-tracking branch refs."""
-    out = run_command("git branch --remotes")
+    out = run("git branch --remotes")
     branches: list[str] = []
     for line in out.splitlines():
         line = line.strip()
@@ -233,7 +233,7 @@ def get_remote_branch_names() -> list[str]:
     return branches
 
 
-def run_command(command: str | Sequence[str]) -> str:
+def run(command: str | Sequence[str]) -> str:
     """Return stdout as string of the executed command."""
     cmd = shlex.split(command) if isinstance(command, str) else list(command)
     response = subprocess.run(cmd, capture_output=True, text=True, check=True)
