@@ -21,6 +21,7 @@ from pathlib import Path
 from shutil import copy2, get_archive_formats, make_archive
 from typing import TypeVar
 
+import purekit as pk
 import timeteller as tt
 from clsforge import InvalidChoiceError
 
@@ -127,7 +128,7 @@ def is_git_repo(path: Path) -> bool:
     """Return True if path is inside a Git repository."""
     try:
         command = f"git -C {path.as_posix()} rev-parse --is-inside-work-tree"
-        return run(command) == "true"
+        return run(command, pk.meta.get_caller_name()) == "true"
     except subprocess.CalledProcessError:
         return False
 
@@ -177,7 +178,7 @@ def delete_local_branches(protected_branches: set[str]) -> int:
     logger.debug("local branches to delete: %d", len(to_delete))
     for branch in to_delete:
         try:
-            run(f"git branch -D {branch}")
+            run(f"git branch -D {branch}", pk.meta.get_caller_name())
             logger.info("deleted: %s", branch)
         except subprocess.CalledProcessError as exc:
             logger.exception("error deleting local branch: %s", branch)
@@ -197,7 +198,7 @@ def delete_remote_branch_refs(protected_branches: set[str]) -> int:
     logger.debug("remote refs to delete: %d", len(to_delete))
     for ref in to_delete:
         try:
-            run(f"git branch -r -d {ref}")
+            run(f"git branch -r -d {ref}", pk.meta.get_caller_name())
             logger.info("deleted: %s", ref)
         except subprocess.CalledProcessError as exc:
             logger.exception("error deleting remote ref: %s", ref)
@@ -209,7 +210,7 @@ def delete_remote_branch_refs(protected_branches: set[str]) -> int:
 def get_current_branch() -> str:
     """Return the current branch name."""
     try:
-        return run("git rev-parse --abbrev-ref HEAD")
+        return run("git rev-parse --abbrev-ref HEAD", pk.meta.get_caller_name())
     except subprocess.CalledProcessError:
         logger.error("cannot determine current branch: repository has no commits yet")
         raise
@@ -217,7 +218,7 @@ def get_current_branch() -> str:
 
 def get_local_branch_names() -> list[str]:
     """Return list of local branch names."""
-    out = run("git branch")
+    out = run("git branch", pk.meta.get_caller_name())
     branches: list[str] = []
     for line in out.splitlines():
         branches.append(line.lstrip("*").strip())
@@ -226,7 +227,7 @@ def get_local_branch_names() -> list[str]:
 
 def get_remote_branch_names() -> list[str]:
     """Return list of remote-tracking branch refs."""
-    out = run("git branch --remotes")
+    out = run("git branch --remotes", pk.meta.get_caller_name())
     branches: list[str] = []
     for line in out.splitlines():
         line = line.strip()
@@ -236,11 +237,11 @@ def get_remote_branch_names() -> list[str]:
     return branches
 
 
-def run(command: str | Sequence[str]) -> str:
+def run(command: str | Sequence[str], label: str) -> str:
     """Return stdout as string of the executed command."""
     cmd = shlex.split(command) if isinstance(command, str) else list(command)
     response = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    logger.debug("run cmd: %s", " ".join(cmd))
+    logger.debug("run cmd: %s: %s", label, " ".join(cmd))
     return response.stdout.strip()
 
 
