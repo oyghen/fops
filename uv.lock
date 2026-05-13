@@ -74,6 +74,7 @@ version = "1.0.4"
 source = { editable = "." }
 dependencies = [
     { name = "clsforge" },
+    { name = "purekit" },
     { name = "timeteller" },
     { name = "typer" },
 ]
@@ -88,6 +89,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "clsforge", specifier = ">=0.1.2" },
+    { name = "purekit", specifier = ">=1.0.0" },
     { name = "timeteller", specifier = ">=1.0.0" },
     { name = "typer", specifier = ">=0.25.1" },
 ]
@@ -188,6 +190,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/8e/22/2de9408ac81acbb8a7d05d4cc064a152ccf33b3d480ebe0cd292153db239/pre_commit-4.6.0.tar.gz", hash = "sha256:718d2208cef53fdc38206e40524a6d4d9576d103eb16f0fec11c875e7716e9d9", size = 198525, upload-time = "2026-04-21T20:31:41.613Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/80/6e/4b28b62ecb6aae56769c34a8ff1d661473ec1e9519e2d5f8b2c150086b26/pre_commit-4.6.0-py2.py3-none-any.whl", hash = "sha256:e2cf246f7299edcabcf15f9b0571fdce06058527f0a06535068a86d38089f29b", size = 226472, upload-time = "2026-04-21T20:31:40.092Z" },
+]
+
+[[package]]
+name = "purekit"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8a/0d/a073d34069df2e8a06d3b31fbc4ea8a9acc7f068d94ba579260a0b85bbf1/purekit-1.0.0.tar.gz", hash = "sha256:77fae467b4976a1d5786505362758194fa6cdea0f8030af3943bef82e49f1097", size = 2759, upload-time = "2026-05-07T16:14:21.169Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/56/d4/6acb0e1a1dd0fd01b564ab10c7d6b397b4156b06cdfe041252b025e7fc3a/purekit-1.0.0-py3-none-any.whl", hash = "sha256:be19c3ec1a2c44cc6035ada4a02a7317031131cdc66ea2fb1651e99d00701adb", size = 4153, upload-time = "2026-05-07T16:14:22.216Z" },
 ]
 
 [[package]]
