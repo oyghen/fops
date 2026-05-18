@@ -170,12 +170,14 @@ def delete_cache_files(directory_path: Path, cache_file_patterns: set[str]) -> i
 def delete_local_branches(protected_branches: set[str]) -> int:
     """Delete local git branches except protected ones."""
     local = get_local_branch_names()
+    logger.debug("%d local branch(es) in total: %s", len(local), local)
+
     to_delete = [b for b in local if b not in protected_branches]
     if not to_delete:
         logger.info("no local branches to delete")
         return 0
 
-    logger.debug("local branches to delete: %d", len(to_delete))
+    logger.debug("%d local branch(es) to delete: %s", len(to_delete), to_delete)
     for branch in to_delete:
         try:
             run(f"git branch -D {branch}", pk.meta.get_caller_name())
@@ -241,8 +243,11 @@ def run(command: str | Sequence[str], label: str) -> str:
     """Return stdout as string of the executed command."""
     cmd = shlex.split(command) if isinstance(command, str) else list(command)
     response = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    logger.debug("run cmd: %s: %s", label, " ".join(cmd))
-    return response.stdout.strip()
+    result = response.stdout.strip()
+    logger.debug(
+        "run cmd: %s: %s -> %s", label, " ".join(cmd), result.replace("\n", ",")
+    )
+    return result
 
 
 def rename_extensions(

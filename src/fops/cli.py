@@ -192,7 +192,7 @@ def branches(
 
     try:
         current = core.get_current_branch()
-        protected = PROTECTED_BRANCHES.union(current).union(protect or {})
+        protected = PROTECTED_BRANCHES.union({current}).union(protect or {})
 
         num_deleted_branches = core.delete_local_branches(protected)
         branch_label = "branch" if num_deleted_branches == 1 else "branches"
